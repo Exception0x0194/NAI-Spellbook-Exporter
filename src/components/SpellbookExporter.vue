@@ -129,7 +129,8 @@ export default {
                             </tbody>
                         </table>
                         <div class="footer">
-                            Generated via NAI-Spellbook-Exporter
+                            Generated via 
+                            <a href="https://github.com/Exception0x0194/NAI-Spellbook-Exporter" target="_blank">NAI-Spellbook-Exporter</a>
                         </div>
                     </body>
                     </html>`;

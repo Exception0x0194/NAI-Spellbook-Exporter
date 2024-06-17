@@ -12,7 +12,8 @@ import SpellbookExporter from './components/SpellbookExporter.vue';
     *计算完全在本地进行
   </p>
   <div class="my-4 pt-4">
-    <a class="inline-block text-sm text-gray-500" href="https://github.com/Exception0x0194/">GitHub</a>
+    <a class="inline-block text-sm text-gray-500"
+      href="https://github.com/Exception0x0194/NAI-Spellbook-Exporter">GitHub</a>
     <br />
   </div>
 </template>
