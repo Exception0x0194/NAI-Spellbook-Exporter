@@ -31,6 +31,10 @@
                     <input type="number" v-model="itemsPerRow" min="1" max="10">&nbsp;个
                 </label>
             </div>
+            <div v-if="compressImage">
+                JPG 压缩品质：<input type="range" v-model="compressRatio" min="0.5" max="1" step="0.05">&nbsp;{{
+                    Math.round(compressRatio * 100) }}%
+            </div>
         </div>
         <div v-if="isLoading">
             <progress max="100" :value="progress">{{ progress }}%</progress>
@@ -52,7 +56,8 @@ export default {
         const metadataList = ref([]);
         const itemsPerRow = ref(3);
         const compressImage = ref(true);
-        const compressRatio = ref(1);
+        const compressSizeRatio = ref(1);
+        const compressQuality = ref(1);
         const rowHeight = ref(512);
         const progress = ref(0);
         const isLoading = ref(false);
@@ -144,7 +149,7 @@ export default {
                     reader.onload = async (e) => {
                         let imageBase64 = e.target.result;
                         if (compressImage.value) {
-                            imageBase64 = await compress(imageBase64, compressRatio.value);
+                            imageBase64 = await compress(imageBase64, compressSizeRatio.value, compressQuality.value);
                         }
                         if (index % itemsPerRow.value === 0) {
                             htmlContent += '<tr>';
@@ -194,7 +199,7 @@ export default {
             clearFiles,
             exportSheet,
             compressImage,
-            compressRatio,
+            compressRatio: compressSizeRatio,
             rowHeight,
             itemsPerRow,
             progress,

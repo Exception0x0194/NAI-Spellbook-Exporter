@@ -86,7 +86,7 @@ export async function getStealthExif(bytes) {
     return null;
 }
 
-export function compress(imageBase64, scaleFactor) {
+export function compress(imageBase64, scaleFactor, quality) {
     return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
@@ -102,7 +102,7 @@ export function compress(imageBase64, scaleFactor) {
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
             // 将canvas内容转换为JPEG格式的Base64字符串
-            const jpegBase64 = canvas.toDataURL('image/jpeg', 1); // 0.8 是质量参数，可以调整
+            const jpegBase64 = canvas.toDataURL('image/jpeg', quality);
 
             resolve(jpegBase64);
         };
