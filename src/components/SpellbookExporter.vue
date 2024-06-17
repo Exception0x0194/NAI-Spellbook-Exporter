@@ -84,7 +84,7 @@ export default {
                     <table>
                         <thead>
                             <tr>`;
-            for (let i = 0; i < itemsPerRow.value; i++) {
+            for (let i = 0; i < Math.min(itemsPerRow.value, fileList.value.length); i++) {
                 htmlContent += `
                     <th>Description</th>
                     <th>Image</th>`;
@@ -136,7 +136,7 @@ export default {
                     </html>`;
 
                 const blob = new Blob([htmlContent], { type: 'text/html' });
-                saveAs(blob, 'export.html');
+                saveAs(blob, 'spellbook.html');
             });
         };
 
