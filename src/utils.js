@@ -41,8 +41,6 @@ class DataReader {
 }
 
 export async function getStealthExif(bytes) {
-    let time = performance.now();
-
     let canvas = document.createElement('canvas');
     let ctx = canvas.getContext('2d', { willReadFrequently: true, alpha: true });
 
@@ -67,8 +65,6 @@ export async function getStealthExif(bytes) {
             lowestData.push(a & 1);
         }
     }
-
-    console.log("Time taken: ", performance.now() - time, "ms");
     URL.revokeObjectURL(url);
 
     const magic = "stealth_pngcomp";
@@ -88,4 +84,33 @@ export async function getStealthExif(bytes) {
     }
 
     return null;
+}
+
+export function compress(imageBase64, scaleFactor) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            // 创建canvas元素
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+
+            // 设置canvas大小为缩放后的大小
+            canvas.width = img.width * scaleFactor;
+            canvas.height = img.height * scaleFactor;
+
+            // 将图片绘制到canvas上
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+            // 将canvas内容转换为JPEG格式的Base64字符串
+            const jpegBase64 = canvas.toDataURL('image/jpeg', 1); // 0.8 是质量参数，可以调整
+
+            resolve(jpegBase64);
+        };
+        img.onerror = (err) => {
+            reject(err);
+        };
+
+        // 设置图片的源为传入的Base64编码
+        img.src = imageBase64;
+    });
 }

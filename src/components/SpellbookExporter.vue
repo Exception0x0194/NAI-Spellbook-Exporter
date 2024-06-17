@@ -3,15 +3,45 @@
         <input type="file" @change="handleFiles" multiple accept="image/png" ref="fileInput" style="display: none;" />
         <button @click="triggerFileInput">添加文件</button>
         <button @click="clearFiles">清空文件</button>
-        <button @click="exportXlsx">导出到 HTML 表格</button>
+        <button @click="exportSheet">导出到 HTML 表格</button>
 
-        <p>待处理文件数量：{{ files.length }}</p>
+        <p>待处理文件数量：{{ fileList.length }}</p>
+
+        <div class="form-container">
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" v-model="compressImage"> 压缩图片
+                    <span v-if="compressImage">&nbsp;← 将使用 JPG 压缩图片，缩小体积并清除水印信息</span>
+                    <span v-else>&nbsp;← 将使用原本的 PNG 图片，保留原有的水印信息</span>
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    每行高度：
+                    <input type="range" v-model="rowHeight" min="128" max="1920" step="128">
+                    <input type="number" v-model="rowHeight" min="128" max="1920">&nbsp;px
+                </label>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    每行图片数量：
+                    <input type="range" v-model="itemsPerRow" min="1" max="10" step="1">
+                    <input type="number" v-model="itemsPerRow" min="1" max="10">&nbsp;个
+                </label>
+            </div>
+        </div>
+        <div v-if="isLoading">
+            <progress max="100" :value="progress">{{ progress }}%</progress>
+        </div>
     </div>
 </template>
 
+
 <script>
 import { ref } from 'vue';
-import { getStealthExif } from '../utils.js';
+import { getStealthExif, compress } from '../utils.js';
 import { saveAs } from 'file-saver';
 
 export default {
@@ -21,6 +51,11 @@ export default {
         const fileList = ref([]);
         const metadataList = ref([]);
         const itemsPerRow = ref(3);
+        const compressImage = ref(true);
+        const compressRatio = ref(1);
+        const rowHeight = ref(512);
+        const progress = ref(0);
+        const isLoading = ref(false);
 
         const triggerFileInput = () => {
             if (fileInput.value) {
@@ -51,7 +86,6 @@ export default {
                     };
 
                     reader.readAsArrayBuffer(file);
-                    console.log(metadataList.value);
                 }
             }
         };
@@ -62,6 +96,11 @@ export default {
         };
 
         const exportSheet = () => {
+            if (fileList.value.length == 0) {
+                return;
+            }
+            isLoading.value = true;
+            progress.value = 0;
             let htmlContent = `
                 <!DOCTYPE html>
                 <html>
@@ -102,18 +141,22 @@ export default {
 
                 const reader = new FileReader();
                 const imagePromise = new Promise((resolve) => {
-                    reader.onload = (e) => {
-                        const imageBase64 = e.target.result;
+                    reader.onload = async (e) => {
+                        let imageBase64 = e.target.result;
+                        if (compressImage.value) {
+                            imageBase64 = await compress(imageBase64, compressRatio.value);
+                        }
                         if (index % itemsPerRow.value === 0) {
                             htmlContent += '<tr>';
                         }
                         htmlContent += `
-                            <td>${description}</td>
-                            <td><img src="${imageBase64}" alt="Image"></td>`;
+                            <td style="width: 100px; height: ${rowHeight.value}px; text-align: left; vertical-align: top; font-size: 10px">${description}</td>
+                            <td><img src="${imageBase64}" alt="Image" height=${rowHeight.value}></td>`;
                         if (index % itemsPerRow.value === itemsPerRow.value - 1) {
                             htmlContent += '</tr>';
                         }
                         index++;
+                        progress.value = Math.round((index / fileList.value.length) * 100);
                         resolve();
                     };
                     reader.readAsDataURL(file);
@@ -137,23 +180,35 @@ export default {
 
                 const blob = new Blob([htmlContent], { type: 'text/html' });
                 saveAs(blob, 'spellbook.html');
+                isLoading.value = false;
+            }).catch(() => {
+                isLoading.value = false;
             });
         };
 
-
-
         return {
             fileInput,
-            files: fileList,
+            fileList,
             triggerFileInput,
             handleFiles,
             clearFiles,
-            exportXlsx: exportSheet,
+            exportSheet,
+            compressImage,
+            compressRatio,
+            rowHeight,
+            itemsPerRow,
+            progress,
+            isLoading
         };
     },
 };
 </script>
 
-<style scoped>
-/* Add any necessary styles here */
+
+<style>
+.form-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
 </style>
