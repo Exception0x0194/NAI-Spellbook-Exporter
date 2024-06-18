@@ -9,35 +9,29 @@
 
         <div class="form-container">
             <div class="form-group">
-                <label>
+                <p>
                     <input type="checkbox" v-model="compressImage"> 压缩图片
                     <span v-if="compressImage">&nbsp;← 将使用 JPG 压缩图片，缩小体积并清除水印信息</span>
                     <span v-else>&nbsp;← 将使用原本的 PNG 图片，保留原有的水印信息</span>
-                </label>
+                </p>
             </div>
-
-            <!-- <div class="form-group">
-                <label>
-                    每行高度：
-                    <input type="range" v-model="rowHeight" min="128" max="1920" step="128">
-                    <input type="number" v-model="rowHeight" min="128" max="1920">&nbsp;px
-                </label>
-            </div> -->
 
             <div class="form-group">
-                <label>
+                <p>
                     每行图片数量：
                     <input type="range" v-model="itemsPerRow" min="1" max="10" step="1">
-                    <input type="number" v-model="itemsPerRow" min="1" max="10">&nbsp;个
-                </label>
+                    {{ itemsPerRow }}&nbsp;个
+                </p>
             </div>
             <div v-if="compressImage">
-                JPG 压缩品质：<input type="range" v-model="compressRatio" min="0.5" max="1" step="0.05">&nbsp;{{
-                    Math.round(compressRatio * 100) }}%
+                <p>
+                    JPG 压缩品质：<input type="range" v-model="compressRatio" min="0.5" max="1" step="0.05">&nbsp;{{
+                        Math.round(compressRatio * 100) }}%
+                </p>
             </div>
         </div>
         <div v-if="isLoading">
-            <progress max="100" :value="progress">{{ progress }}%</progress>
+            <p><progress max="100" :value="progress">{{ progress }}%</progress></p>
         </div>
     </div>
 </template>
