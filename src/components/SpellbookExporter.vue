@@ -16,13 +16,13 @@
                 </label>
             </div>
 
-            <div class="form-group">
+            <!-- <div class="form-group">
                 <label>
                     每行高度：
                     <input type="range" v-model="rowHeight" min="128" max="1920" step="128">
                     <input type="number" v-model="rowHeight" min="128" max="1920">&nbsp;px
                 </label>
-            </div>
+            </div> -->
 
             <div class="form-group">
                 <label>
@@ -114,7 +114,6 @@ export default {
                     <title>Spellbook</title>
                     <style>
                         table {
-                            width: 100%;
                             border-collapse: collapse;
                         }
                         th, td {
@@ -122,9 +121,26 @@ export default {
                             padding: 5px;
                             text-align: center;
                         }
+                        .fixed-button {
+                            position: fixed;
+                            top: 10px;
+                            right: 10px;
+                            z-index: 1000;
+                            width: 100px;
+                            height: 50px; 
+                            font-size: 16px;
+                        }
                     </style>
                 </head>
                 <body>
+                    <h1>Generated Spellbook</h1>
+                    <button class="fixed-button" onclick="saveStaticHTML()">另存一份</button>
+                    <p>可以点击表格内容，对表格中的文本进行修改。<font color="red">如有修改，请注意及时保存（可以使用右上角按钮另存一份修改后的 HTML 文件）。</font></p>
+                    <p>
+                        <label for="rowHeightRange">调整图片高度：</label>
+                        <input type="range" id="rowHeightRange" min="128" max="1280" step="128" value="${rowHeight.value}" oninput="adjustRowHeight(this.value)">
+                        <span id="rowHeightValue">&nbsp;${rowHeight.value}px</span>
+                    </p>
                     <table>
                         <thead>
                             <tr>`;
@@ -155,7 +171,7 @@ export default {
                             htmlContent += '<tr>';
                         }
                         htmlContent += `
-                            <td style="width: 100px; height: ${rowHeight.value}px; text-align: left; vertical-align: top; font-size: 10px">${description}</td>
+                            <td class="editable" contenteditable="true" style="width: 100px; text-align: left; vertical-align: top; font-size: 10px">${description}</td>
                             <td><img src="${imageBase64}" alt="Image" height=${rowHeight.value}></td>`;
                         if (index % itemsPerRow.value === itemsPerRow.value - 1) {
                             htmlContent += '</tr>';
@@ -180,6 +196,25 @@ export default {
                             Generated via 
                             <a href="https://github.com/Exception0x0194/NAI-Spellbook-Exporter" target="_blank">NAI-Spellbook-Exporter</a>
                         </div>
+                        <script>
+                            function adjustRowHeight(value) {
+                                document.querySelectorAll('img').forEach(img => {
+                                    img.style.height = value + 'px';
+                                });
+                                document.getElementById('rowHeightValue').innerText = value + 'px';
+                            }
+                            function saveStaticHTML() {
+                                const content = document.documentElement.outerHTML;
+                                const blob = new Blob([content], { type: 'text/html' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = 'spellbook.html';
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                            }
+                        <\/script>
                     </body>
                     </html>`;
 
