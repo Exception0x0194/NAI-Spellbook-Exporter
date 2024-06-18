@@ -55,7 +55,7 @@ export default {
         const fileList = ref([]);
         const metadataList = ref([]);
         const itemsPerRow = ref(3);
-        const compressImage = ref(true);
+        const compressImage = ref(false);
         const compressSizeRatio = ref(1);
         const compressQuality = ref(1);
         const rowHeight = ref(512);
@@ -71,27 +71,46 @@ export default {
         const handleFiles = (event) => {
             const input = event.target;
             if (input.files) {
-                for (let i = 0; i < input.files.length; i++) {
+                isLoading.value = true;
+                progress.value = 0;
+
+                let completed = 0;
+                const totalFiles = input.files.length;
+
+                const filePromises = [];
+                for (let i = 0; i < totalFiles; i++) {
                     const file = input.files[i];
                     const reader = new FileReader();
 
-                    reader.onload = async (e) => {
-                        try {
-                            const arrayBuffer = e.target.result;
-                            const metadata = await getStealthExif(arrayBuffer);
-                            if (metadata) {
-                                fileList.value.push(file);
-                                metadataList.value.push(metadata);
-                            } else {
-                                console.error('Could not find watermark in image.');
+                    const filePromise = new Promise((resolve) => {
+                        reader.onload = async (e) => {
+                            try {
+                                const arrayBuffer = e.target.result;
+                                const metadata = await getStealthExif(arrayBuffer);
+                                if (metadata) {
+                                    fileList.value.push(file);
+                                    metadataList.value.push(metadata);
+                                } else {
+                                    console.error('Could not find watermark in image.');
+                                }
+                            } catch (error) {
+                                console.error('Error reading file:', error);
+                            } finally {
+                                completed++;
+                                progress.value = Math.round(100 * completed / totalFiles);
+                                resolve();
                             }
-                        } catch (error) {
-                            console.error('Error reading file:', error);
-                        }
-                    };
+                        };
+                        reader.readAsArrayBuffer(file);
+                    });
 
-                    reader.readAsArrayBuffer(file);
+                    filePromises.push(filePromise);
                 }
+
+                Promise.all(filePromises).then(() => {
+                    isLoading.value = false;
+                    progress.value = 0;
+                });
             }
         };
 
@@ -117,9 +136,8 @@ export default {
                             border-collapse: collapse;
                         }
                         th, td {
-                            border: 1px solid black;
+                            border: 1px solid gray;
                             padding: 5px;
-                            text-align: center;
                         }
                         .fixed-button {
                             position: fixed;
@@ -133,9 +151,9 @@ export default {
                     </style>
                 </head>
                 <body>
-                    <h1>Generated Spellbook</h1>
-                    <button class="fixed-button" onclick="saveStaticHTML()">另存一份</button>
-                    <p>可以点击表格内容，对表格中的文本进行修改。<font color="red">如有修改，请注意及时保存（可以使用右上角按钮另存一份修改后的 HTML 文件）。</font></p>
+                    <h1>HTML 法典</h1>
+                    <button type="button" class="fixed-button" onclick="saveStaticHTML()">另存一份</button>
+                    <p>可以点击表格内容，对表格中的文本进行修改。<font color="red">如有修改，请注意及时保存（可以点击右上角按钮，另存一份修改后的 HTML 文件）。</font></p>
                     <p>
                         <label for="rowHeightRange">调整图片高度：</label>
                         <input type="range" id="rowHeightRange" min="128" max="1280" step="128" value="${rowHeight.value}" oninput="adjustRowHeight(this.value)">
@@ -146,7 +164,7 @@ export default {
                             <tr>`;
             for (let i = 0; i < Math.min(itemsPerRow.value, fileList.value.length); i++) {
                 htmlContent += `
-                    <th>Description</th>
+                    <th width="150px">Description</th>
                     <th>Image</th>`;
             }
             htmlContent += `
@@ -171,7 +189,7 @@ export default {
                             htmlContent += '<tr>';
                         }
                         htmlContent += `
-                            <td class="editable" contenteditable="true" style="width: 100px; text-align: left; vertical-align: top; font-size: 10px">${description}</td>
+                            <td contenteditable="true" style="text-align: left; vertical-align: top; font-size: 10px">${description}</td>
                             <td><img src="${imageBase64}" alt="Image" height=${rowHeight.value}></td>`;
                         if (index % itemsPerRow.value === itemsPerRow.value - 1) {
                             htmlContent += '</tr>';
@@ -220,8 +238,7 @@ export default {
 
                 const blob = new Blob([htmlContent], { type: 'text/html' });
                 saveAs(blob, 'spellbook.html');
-                isLoading.value = false;
-            }).catch(() => {
+            }).finally(() => {
                 isLoading.value = false;
             });
         };
