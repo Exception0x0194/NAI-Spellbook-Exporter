@@ -5,7 +5,7 @@ import SpellbookExporter from './components/SpellbookExporter.vue';
 <template>
   <h1 class="font-bold text-3xl">NAI 法典生成器</h1>
   <p class="text-gray-500 my-2 text-sm">
-    读取 NAI 生成图片中的水印信息，并将信息导出到 HTML 表格中
+    读取 NAI 生成图片中的生成信息，并将信息导出到 HTML 表格中
   </p>
   <SpellbookExporter />
   <p class="text-gray-500 my-2 text-sm">
