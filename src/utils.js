@@ -1,4 +1,6 @@
 import pako from 'pako';
+import extractChunks from "png-chunks-extract";
+import text from "png-chunk-text";
 
 class DataReader {
     constructor(data) {
@@ -40,7 +42,52 @@ class DataReader {
     }
 }
 
-export async function getStealthExif(bytes) {
+async function getChunks(bytes) {
+    let chunks = [];
+    try {
+        chunks = extractChunks(new Uint8Array(bytes));
+    } catch (err) {
+        return chunks;
+    }
+    const textChunks = chunks
+        .filter(function (chunk) {
+            return chunk.name === "tEXt" || chunk.name === "iTXt";
+        })
+        .map(function (chunk) {
+            if (chunk.name === "iTXt") {
+                let data = chunk.data.filter((x) => x != 0x0);
+                let header = new TextDecoder().decode(data.slice(0, 11));
+                if (header == "Description") {
+                    data = data.slice(11);
+                    let txt = new TextDecoder().decode(data);
+                    return {
+                        keyword: "Description",
+                        text: txt,
+                    };
+                } else {
+                    let txt = new TextDecoder().decode(data);
+                    return {
+                        keyword: "Unknown",
+                        text: txt,
+                    };
+                }
+            } else {
+                return text.decode(chunk.data);
+            }
+        });
+    return textChunks;
+}
+
+async function getPngMetadata(bytes) {
+    const chunks = await getChunks(bytes);
+    const json = {};
+    chunks.forEach(chunk => {
+        json[chunk['keyword']] = chunk['text'];
+    });
+    return json;
+}
+
+async function getStealthExif(bytes) {
     let canvas = document.createElement('canvas');
     let ctx = canvas.getContext('2d', { willReadFrequently: true, alpha: true });
 
@@ -84,6 +131,19 @@ export async function getStealthExif(bytes) {
     }
 
     return null;
+}
+
+export async function getImageData(bytes) {
+    try {
+        let json = await getPngMetadata(bytes);
+        if (Object.keys(json).length === 0) {
+            json = await getStealthExif(bytes);
+        }
+        return json;
+    } catch (err) {
+        console.error('Error reading image data:', error);
+        return null;
+    }
 }
 
 export function compress(imageBase64, scaleFactor, quality) {

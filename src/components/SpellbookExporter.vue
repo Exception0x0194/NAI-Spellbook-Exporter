@@ -39,7 +39,7 @@
 
 <script>
 import { ref } from 'vue';
-import { getStealthExif, compress } from '../utils.js';
+import { getImageData, compress } from '../utils.js';
 import { saveAs } from 'file-saver';
 
 export default {
@@ -80,7 +80,7 @@ export default {
                         reader.onload = async (e) => {
                             try {
                                 const arrayBuffer = e.target.result;
-                                const metadata = await getStealthExif(arrayBuffer);
+                                const metadata = await getImageData(arrayBuffer);
                                 if (metadata) {
                                     fileList.value.push(file);
                                     metadataList.value.push(metadata);
