@@ -252,7 +252,7 @@ async function generateChapterContent(chapter, index, itemsPerRow, rowHeight, co
     for (let i = 0; i < Math.min(itemsPerRow, chapter.fileList.length); i++) {
         htmlContent += `
                     <th width="150px">Description</th>
-                    <th>Image</th>`;
+                    <th width="512px">Image</th>`;
     }
     htmlContent += `</tr> </thead> <tbody>`;
 
