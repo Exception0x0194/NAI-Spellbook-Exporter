@@ -252,7 +252,7 @@ async function generateChapterContent(chapter, index, itemsPerRow, rowHeight, co
     for (let i = 0; i < Math.min(itemsPerRow, chapter.fileList.length); i++) {
         htmlContent += `
                     <th width="150px">Description</th>
-                    <th width="512px">Image</th>`;
+                    <th width="128px">Image</th>`;
     }
     htmlContent += `</tr> </thead> <tbody>`;
 
@@ -277,7 +277,7 @@ async function generateChapterContent(chapter, index, itemsPerRow, rowHeight, co
                         tableContent += '<tr>';
                     }
                     tableContent += `
-                                <td contenteditable="true" style="text-align: left; vertical-align: top; font-size: 10px">${description}</td>
+                                <td contenteditable="true" style="text-align: left; vertical-align: top; font-size: 10px">${description.replace(/,([^ ])/g, ', $1')}</td>
                                 <td><img src="${imageBase64}" alt="Image" height=${rowHeight}></td>`;
                     if (rowIndex % itemsPerRow === itemsPerRow - 1) {
                         tableContent += '</tr>';
