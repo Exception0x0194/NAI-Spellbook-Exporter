@@ -9,10 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "file-saver": "^2.0.5",
     "pako": "^2.1.0",
     "png-chunk-text": "^1.0.0",
     "png-chunks-extract": "^1.0.0",
+    "streamsaver": "^2.0.6",
     "vue": "^3.4.21"
   },
   "devDependencies": {

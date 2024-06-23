@@ -8,6 +8,7 @@
             <input v-model="chapter.name" placeholder="输入章节名称" />
             <input type="file" :ref="'fileInput' + index" @change="handleFiles($event, index)" multiple
                 accept="image/png" style="display: none;" />
+            <br>
             <button @click="triggerFileInput(index)">添加文件</button>
             <button @click="clearChapter(index)">清空文件</button>
             <button @click="removeChapter(index)">删除章节</button>
@@ -47,7 +48,7 @@
 <script>
 import { ref, getCurrentInstance } from 'vue';
 import { getImageData, compress } from '../utils.js';
-import { saveAs } from 'file-saver';
+import streamSaver from 'streamsaver';
 
 export default {
     setup() {
@@ -131,27 +132,93 @@ export default {
             }
         };
 
-        const exportSheet = async () => {
+        async function exportSheet() {
             if (chapters.value.length === 0) {
                 return;
             }
             isLoading.value = true;
             progress.value = 0;
 
-            let htmlContent = generateHTMLHeader(rowHeight.value);
-            htmlContent += generateTOC(chapters.value);
+            const fileStream = streamSaver.createWriteStream('spellbook.html');
+            const writer = fileStream.getWriter();
+
+            // 写入HTML头部
+            await writer.write(encodeText(generateHTMLHeader(rowHeight.value)));
+            await writer.write(encodeText(generateTOC(chapters.value)));
+
+            const totalFiles = chapters.value.reduce((acc, chapter) => acc + chapter.fileList.length, 0);
+            let processedFiles = 0;
 
             for (let i = 0; i < chapters.value.length; i++) {
-                const chapterContent = await generateChapterContent(chapters.value[i], i, itemsPerRow.value, rowHeight.value, compressImage.value, compressSizeRatio.value, compressQuality.value, progress);
-                htmlContent += chapterContent;
+                const chapter = chapters.value[i];
+                if (chapter.fileList.length === 0) {
+                    continue;
+                }
+                const chapterTitle = chapter.name ? `#${i + 1}: ${chapter.name}` : `#${i + 1}`;
+                await writer.write(encodeText(`<h2 id="chapter#${i}">${chapterTitle}</h2>`));
+                await writer.write(encodeText(`<table><thead><tr>`));
+
+                for (let j = 0; j < Math.min(itemsPerRow.value, chapter.fileList.length); j++) {
+                    await writer.write(encodeText(`
+                <th width="150px">Description</th>
+                <th width="128px">Image</th>
+            `));
+                }
+
+                await writer.write(encodeText(`</tr></thead><tbody>`));
+
+                let rowIndex = 0;
+
+                for (let j = 0; j < chapter.fileList.length; j++) {
+                    const file = chapter.fileList[j];
+                    const description = chapter.metadataList[j].Description;
+
+                    const reader = new FileReader();
+                    const filePromise = new Promise((resolve) => {
+                        reader.onload = async (e) => {
+                            try {
+                                let imageBase64 = e.target.result;
+                                if (compressImage.value) {
+                                    imageBase64 = await compress(imageBase64, compressSizeRatio.value, compressQuality.value);
+                                }
+                                if (rowIndex % itemsPerRow.value === 0) {
+                                    await writer.write(encodeText('<tr>'));
+                                }
+                                await writer.write(encodeText(`
+                            <td contenteditable="true" style="text-align: left; vertical-align: top; font-size: 10px">${description.replace(/,([^ ])/g, ', $1')}</td>
+                            <td><img data-src="${imageBase64}" alt="Image" height=${rowHeight.value} class="lazy"></td>
+                        `));
+                                if (rowIndex % itemsPerRow.value === itemsPerRow.value - 1) {
+                                    await writer.write(encodeText('</tr>'));
+                                }
+                                rowIndex++;
+                                processedFiles++;
+                                progress.value = Math.round((processedFiles / totalFiles) * 100);
+                                resolve();
+                            } catch (error) {
+                                console.error('Error processing image:', error);
+                                resolve();
+                            }
+                        };
+                        reader.readAsDataURL(file);
+                    });
+
+                    await filePromise;
+                }
+
+                if (rowIndex % itemsPerRow.value !== 0) {
+                    await writer.write(encodeText('</tr>'));
+                }
+                await writer.write(encodeText(`</tbody></table>`));
             }
 
-            htmlContent += generateHTMLFooter();
+            // 写入HTML尾部和懒加载脚本
+            await writer.write(encodeText(generateHTMLFooterWithLazyLoading()));
+            await writer.close();
 
-            const blob = new Blob([htmlContent], { type: 'text/html' });
-            saveAs(blob, 'spellbook.html');
             isLoading.value = false;
         };
+
 
         return {
             chapters,
@@ -170,6 +237,21 @@ export default {
         };
     },
 };
+
+function encodeText(text) {
+    const encoder = new TextEncoder();
+    return encoder.encode(text);
+}
+
+async function createWritableBlobStream(filename) {
+    const { writable, readable } = new TransformStream();
+    const writer = writable.getWriter();
+    const blobStream = new Response(readable).blob();
+
+    saveAs(blobStream, filename);
+
+    return writer;
+}
 
 function generateHTMLHeader(rowHeight) {
     return `
@@ -210,7 +292,7 @@ function generateHTMLHeader(rowHeight) {
                     </p>`;
 }
 
-function generateHTMLFooter() {
+function generateHTMLFooterWithLazyLoading() {
     return `
                     <div class="footer">
                         Generated via 
@@ -237,73 +319,45 @@ function generateHTMLFooter() {
                         function backToTOC() {
                             window.scrollTo(0, document.querySelector('.toc').offsetTop);
                         }
+                        document.addEventListener('DOMContentLoaded', function() {
+                            let lazyImages = [].slice.call(document.querySelectorAll('img.lazy'));
+
+                            if ('IntersectionObserver' in window) {
+                                let lazyImageObserver = new IntersectionObserver(function(entries, observer) {
+                                    entries.forEach(function(entry) {
+                                        if (entry.isIntersecting) {
+                                            let lazyImage = entry.target;
+                                            lazyImage.src = lazyImage.dataset.src;
+                                            lazyImage.classList.remove('lazy');
+                                            lazyImage.classList.add('lazy-loaded');
+                                            lazyImageObserver.unobserve(lazyImage);
+                                        }
+                                    });
+                                });
+
+                                lazyImages.forEach(function(lazyImage) {
+                                    lazyImageObserver.observe(lazyImage);
+                                });
+                            } else {
+                                // Fallback for older browsers
+                                let lazyLoad = function() {
+                                    lazyImages.forEach(function(lazyImage) {
+                                        if (lazyImage.getBoundingClientRect().top < window.innerHeight) {
+                                            lazyImage.src = lazyImage.dataset.src;
+                                            lazyImage.classList.remove('lazy');
+                                            lazyImage.classList.add('lazy-loaded');
+                                        }
+                                    });
+                                };
+
+                                window.addEventListener('scroll', lazyLoad);
+                                window.addEventListener('resize', lazyLoad);
+                                lazyLoad();
+                            }
+                        });
                     <\/script>
                 </body>
                 </html>`;
-}
-
-async function generateChapterContent(chapter, index, itemsPerRow, rowHeight, compressImage, compressSizeRatio, compressQuality, progress) {
-    if (chapter.fileList.length === 0) {
-        return '';
-    }
-    const chapterTitle = chapter.name ? `#${index + 1}: ${chapter.name}` : `#${index + 1}`;
-    let htmlContent = `<h2 id="chapter#${index}">${chapterTitle}</h2>`;
-    htmlContent += `<table> <thead> <tr>`;
-    for (let i = 0; i < Math.min(itemsPerRow, chapter.fileList.length); i++) {
-        htmlContent += `
-                    <th width="150px">Description</th>
-                    <th width="128px">Image</th>`;
-    }
-    htmlContent += `</tr> </thead> <tbody>`;
-
-    const totalFiles = chapter.fileList.length;
-    const filePromises = [];
-    let tableContent = '';
-    let rowIndex = 0;
-
-    for (let i = 0; i < totalFiles; i++) {
-        const file = chapter.fileList[i];
-        const description = chapter.metadataList[i].Description;
-
-        const reader = new FileReader();
-        const filePromise = new Promise((resolve) => {
-            reader.onload = async (e) => {
-                try {
-                    let imageBase64 = e.target.result;
-                    if (compressImage) {
-                        imageBase64 = await compress(imageBase64, compressSizeRatio, compressQuality);
-                    }
-                    if (rowIndex % itemsPerRow === 0) {
-                        tableContent += '<tr>';
-                    }
-                    tableContent += `
-                                <td contenteditable="true" style="text-align: left; vertical-align: top; font-size: 10px">${description.replace(/,([^ ])/g, ', $1')}</td>
-                                <td><img src="${imageBase64}" alt="Image" height=${rowHeight}></td>`;
-                    if (rowIndex % itemsPerRow === itemsPerRow - 1) {
-                        tableContent += '</tr>';
-                    }
-                    rowIndex++;
-                    progress.value = Math.round((rowIndex / totalFiles) * 100);
-                    resolve();
-                } catch (error) {
-                    console.error('Error processing image:', error);
-                    resolve();
-                }
-            };
-            reader.readAsDataURL(file);
-        });
-
-        filePromises.push(filePromise);
-    }
-
-    await Promise.all(filePromises);
-
-    if (rowIndex % itemsPerRow !== 0) {
-        tableContent += '</tr>';
-    }
-    htmlContent += tableContent;
-    htmlContent += `</tbody> </table>`;
-    return htmlContent;
 }
 
 function generateTOC(chapters) {
