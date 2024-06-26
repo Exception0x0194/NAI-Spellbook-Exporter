@@ -23,8 +23,8 @@
             <div class="form-item">
                 <p>
                     <el-checkbox-button v-model="compressImage" label="压缩图片" style="margin-right: 10px" />
-                    <span v-if="compressImage">将使用 WEBP 压缩图片</span>
-                    <span v-else>将使用原本的 PNG 图片</span>
+                    <span v-if="compressImage">将使用 JPG 压缩图片，丢失水印信息</span>
+                    <span v-else>将使用原本的 PNG 图片，保留水印信息</span>
                 </p>
             </div>
 
@@ -38,7 +38,7 @@
                 <span>压缩品质：</span>
                 <el-slider v-model="compressRatio" :min="0.5" :max="1" :step="0.05" :show-tooltip="false" />
                 <span>{{ Math.round(compressRatio * 100) }}%</span>
-                <span v-if="compressRatio == 1">&nbsp;← 将保留水印信息</span>
+                <!-- <span v-if="compressRatio == 1">&nbsp;← 将保留水印信息</span> -->
             </div>
         </div>
 
@@ -290,7 +290,7 @@ function generateHTMLHeader(rowHeight) {
                     <button type="button" class="fixed-button" onclick="saveStaticHTML()">另存一份</button>
                     <button type="button" class="fixed-button" style="top: 70px;" onclick="backToTOC()">回到目录</button>
                     <p>可以点击表格内容，对表格中的文本进行修改。<font color="red">如有修改，请注意及时保存（可以点击右上角按钮，另存一份修改后的 HTML 文件）。</font></p>
-                    <p>如果没有压缩图片，可以将表格中的图片另存为<font color="red">具有生成信息的</font> 图片。</p>
+                    <p>如果没有压缩图片，可以将表格中的图片另存为<font color="red">具有生成信息的</font>图片。</p>
                     <p>
                         <label for="rowHeightRange">调整图片高度：</label>
                         <input type="range" id="rowHeightRange" min="128" max="1280" step="128" value="${rowHeight}" oninput="adjustRowHeight(this.value)">
