@@ -1,39 +1,44 @@
 <template>
     <div>
-        <button @click="addChapter">添加章节</button>
-        <button @click="exportSheet">导出到 HTML 表格</button>
+        <el-button @click="addChapter" :icon="DocumentAdd">添加章节</el-button>
+        <el-button @click="exportSheet" :icon="Download">导出到 HTML 表格</el-button>
 
         <div v-for="(chapter, index) in chapters" :key="index" class="chapter-box">
-            章节 #{{ index + 1 }}：
-            <input v-model="chapter.name" placeholder="输入章节名称" />
+            <div class="chapter-box-item">
+                <span>章节 #{{ index + 1 }}：</span>
+                <el-input v-model="chapter.name" style="width: 200px;" placeholder="输入章节名称" />
+            </div>
+            <div class="chapter-box-item">
+                <el-button @click="triggerFileInput(index)" :icon="Plus">添加文件</el-button>
+                <el-button @click="clearChapter(index)" :icon="Delete">清空文件</el-button>
+                <el-button @click="removeChapter(index)" :icon="Close">删除章节</el-button>
+            </div>
+            <div style="float: right;">文件数量：{{ chapter.fileList.length }}</div>
+
             <input type="file" :ref="'fileInput' + index" @change="handleFiles($event, index)" multiple
                 accept="image/png" style="display: none;" />
-            <br>
-            <button @click="triggerFileInput(index)">添加文件</button>
-            <button @click="clearChapter(index)">清空文件</button>
-            <button @click="removeChapter(index)">删除章节</button>
-            <br>
-            <span style="float: right;padding-right: 5px">文件数量：{{ chapter.fileList.length }}</span>
         </div>
 
         <div class="form-container">
-            <div class="form-group">
+            <div class="form-item">
                 <p>
-                    <input type="checkbox" v-model="compressImage"> 压缩图片
-                    <span v-if="compressImage">&nbsp;← 将使用 JPG 压缩图片，缩小体积并清除水印信息</span>
-                    <span v-else>&nbsp;← 将使用原本的 PNG 图片，保留原有的水印信息</span>
+                    <el-checkbox-button v-model="compressImage" label="压缩图片" style="margin-right: 10px" />
+                    <span v-if="compressImage">将使用 WEBP 压缩图片</span>
+                    <span v-else>将使用原本的 PNG 图片</span>
                 </p>
             </div>
 
-            <div class="form-group">
-                每行图片数量：
-                <input type="range" v-model="itemsPerRow" min="1" max="10" step="1">
-                {{ itemsPerRow }}&nbsp;个
+            <div class="form-item">
+                <span>每行图片数量：</span>
+                <el-slider v-model="itemsPerRow" :min="1" :max="10" :step="1" :show-tooltip="false" />
+                <span>{{ itemsPerRow }}&nbsp;个</span>
             </div>
-            <div v-if="compressImage">
-                JPG 压缩品质：
-                <input type="range" v-model="compressRatio" min="0.5" max="1" step="0.05">
-                &nbsp;{{ Math.round(compressRatio * 100) }}%
+
+            <div v-if="compressImage" class="form-item">
+                <span>压缩品质：</span>
+                <el-slider v-model="compressRatio" :min="0.5" :max="1" :step="0.05" :show-tooltip="false" />
+                <span>{{ Math.round(compressRatio * 100) }}%</span>
+                <span v-if="compressRatio == 1">&nbsp;← 将保留水印信息</span>
             </div>
         </div>
 
@@ -48,6 +53,7 @@
 <script>
 import { ref, getCurrentInstance } from 'vue';
 import { getImageData, compress } from '../utils.js';
+import { Plus, Delete, Close, Download, DocumentAdd } from '@element-plus/icons-vue';
 import streamSaver from 'streamsaver';
 
 export default {
@@ -233,7 +239,7 @@ export default {
             rowHeight,
             itemsPerRow,
             progress,
-            isLoading
+            isLoading, Plus, Delete, Close, Download, DocumentAdd
         };
     },
 };
@@ -284,7 +290,7 @@ function generateHTMLHeader(rowHeight) {
                     <button type="button" class="fixed-button" onclick="saveStaticHTML()">另存一份</button>
                     <button type="button" class="fixed-button" style="top: 70px;" onclick="backToTOC()">回到目录</button>
                     <p>可以点击表格内容，对表格中的文本进行修改。<font color="red">如有修改，请注意及时保存（可以点击右上角按钮，另存一份修改后的 HTML 文件）。</font></p>
-                    <p>如果没有压缩图片，可以将表格中的图片另存为<font color="red">具有生成信息的</font> PNG 图片。</p>
+                    <p>如果没有压缩图片，可以将表格中的图片另存为<font color="red">具有生成信息的</font> 图片。</p>
                     <p>
                         <label for="rowHeightRange">调整图片高度：</label>
                         <input type="range" id="rowHeightRange" min="128" max="1280" step="128" value="${rowHeight}" oninput="adjustRowHeight(this.value)">
@@ -380,11 +386,29 @@ function generateTOC(chapters) {
     align-items: flex-start;
 }
 
+.form-container .form-item {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    width: 100%;
+}
+
+.form-container .form-item .el-slider {
+    width: 150px;
+    margin-left: 10px;
+    margin-right: 20px;
+}
+
 .chapter-box {
     margin: 10px;
     border: 1px solid gray;
     padding: 5px;
     padding-bottom: 30px;
-    border-radius: 4px;
+    border-radius: 8px;
+    width: 100%;
+}
+
+.chapter-box .chapter-box-item {
+    margin-bottom: 5px;
 }
 </style>

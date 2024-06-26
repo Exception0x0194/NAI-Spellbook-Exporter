@@ -161,10 +161,10 @@ export function compress(imageBase64, scaleFactor, quality) {
             // 将图片绘制到canvas上
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-            // 将canvas内容转换为JPEG格式的Base64字符串
-            const jpegBase64 = canvas.toDataURL('image/jpeg', quality);
+            // 将canvas内容转换为WEBP格式的Base64字符串
+            const compressedBase64 = canvas.toDataURL('image/webp', quality);
 
-            resolve(jpegBase64);
+            resolve(compressedBase64);
         };
         img.onerror = (err) => {
             reject(err);
