@@ -88,11 +88,11 @@ async function getPngMetadata(bytes) {
     return json;
 }
 
-async function getStealthExif(bytes) {
+async function getStealthExif(bytes, type = 'image/png') {
     let canvas = document.createElement('canvas');
     let ctx = canvas.getContext('2d', { willReadFrequently: true, alpha: true });
 
-    let blob = new Blob([bytes], { type: 'image/png' });
+    let blob = new Blob([bytes], { type: type });
     let url = URL.createObjectURL(blob);
     let img = new Image();
     img.src = url;
@@ -134,11 +134,11 @@ async function getStealthExif(bytes) {
     return null;
 }
 
-export async function getImageData(bytes) {
+export async function getImageData(bytes, type = 'image/png') {
     try {
         let json = await getPngMetadata(bytes);
         if (Object.keys(json).length === 0) {
-            json = await getStealthExif(bytes);
+            json = await getStealthExif(bytes, type);
         }
         return json;
     } catch (err) {
