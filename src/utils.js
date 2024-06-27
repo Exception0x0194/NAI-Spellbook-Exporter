@@ -147,46 +147,6 @@ export async function getImageData(bytes) {
     }
 }
 
-// export function compress(imageBase64, scaleFactor, quality) {
-//     return new Promise((resolve, reject) => {
-//         const img = new Image();
-//         img.onload = () => {
-//             // 创建canvas元素
-//             const canvas = document.createElement('canvas');
-//             const ctx = canvas.getContext('2d');
-
-//             // 设置canvas大小为缩放后的大小
-//             canvas.width = img.width * scaleFactor;
-//             canvas.height = img.height * scaleFactor;
-
-//             // 将图片绘制到canvas上
-//             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-<<<<<<< Updated upstream
-            // 将canvas内容转换为JPEG格式的Base64字符串
-            const jpegBase64 = canvas.toDataURL('image/jpeg', quality);
-
-            resolve(jpegBase64);
-        };
-        img.onerror = (err) => {
-            reject(err);
-        };
-=======
-//             // 将canvas内容转换为压缩格式的Base64字符串
-//             const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-
-//             resolve(compressedBase64);
-//         };
-//         img.onerror = (err) => {
-//             reject(err);
-//         };
->>>>>>> Stashed changes
-
-//         // 设置图片的源为传入的Base64编码
-//         img.src = imageBase64;
-//     });
-// }
-
 export async function compressWithBIC(imageBase64, quality) {
     const imageFile = await fetch(imageBase64)
         .then(res => res.blob())

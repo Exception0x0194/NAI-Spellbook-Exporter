@@ -47,12 +47,8 @@
 
 <script>
 import { ref, getCurrentInstance } from 'vue';
-<<<<<<< Updated upstream
 import { getImageData, compress } from '../utils.js';
-=======
-import { getImageData, compress, compressWithBIC } from '../utils.js';
 import { Plus, Delete, Close, Download, DocumentAdd } from '@element-plus/icons-vue';
->>>>>>> Stashed changes
 import streamSaver from 'streamsaver';
 
 export default {
