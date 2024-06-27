@@ -147,17 +147,35 @@ export async function getImageData(bytes) {
     }
 }
 
-export async function compress(imageArrayBuffer, quality) {
+export async function compress(imageBase64, quality) {
+    const imageBuffer = await (await fetch(imageBase64)).arrayBuffer();
+    const mimeType = 'image/webp';
     const compressionOptions = {
-        image: imageArrayBuffer,
+        image: imageBuffer,
         quality: quality,
         format: "webp"  // 指定输出格式为 webp
     };
     try {
-        const compressedArrayBuffer = await optimizeImage(compressionOptions);
-        return compressedArrayBuffer;
+        const compressedBuffer = await optimizeImage(compressionOptions);
+        const compressedBase64 = await arrayBufferToBase64(compressedBuffer, mimeType);
+        return compressedBase64;
     } catch (error) {
         console.error('Error compressing image:', error);
         return null;  // 在压缩失败时返回 null
     }
+}
+
+async function arrayBufferToBase64(buffer, mimeType) {
+    return new Promise((resolve, reject) => {
+        const blob = new Blob([buffer], { type: mimeType });
+        const reader = new FileReader();
+        reader.onloadend = function () {
+            const base64data = reader.result;
+            resolve(base64data);
+        };
+        reader.onerror = function (error) {
+            reject('Error converting to base64: ' + error.message);
+        };
+        reader.readAsDataURL(blob);
+    });
 }
