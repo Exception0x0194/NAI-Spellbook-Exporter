@@ -1,12 +1,17 @@
 <template>
     <div>
+        <div>
+            <span>法典标题：</span>
+            <el-input v-model="title" style="width: 200px; margin-bottom: 5px" placeholder="输入法典标题" />
+        </div>
+
         <el-button @click="addChapter" :icon="DocumentAdd">添加章节</el-button>
         <el-button @click="exportSheet" :icon="Download">导出到 HTML 表格</el-button>
 
         <div v-for="(chapter, index) in chapters" :key="index" class="chapter-box">
             <div class="chapter-box-item">
                 <span>章节 #{{ index + 1 }}：</span>
-                <el-input v-model="chapter.name" style="width: 200px;" placeholder="输入章节名称" />
+                <el-input v-model="chapter.name" style="width: 200px;" placeholder="输入章节标题" />
             </div>
             <div class="chapter-box-item">
                 <el-button @click="triggerFileInput(index)" :icon="Plus">添加文件</el-button>
@@ -60,6 +65,7 @@ export default {
     setup() {
         const { proxy } = getCurrentInstance();
 
+        const title = ref("");
         const chapters = ref([{ title: "", comment: "", fileList: [], metadataList: [] }]);
 
         const itemsPerRow = ref(3);
@@ -144,11 +150,11 @@ export default {
             isLoading.value = true;
             progress.value = 0;
 
-            const fileStream = streamSaver.createWriteStream('spellbook.html');
+            const fileStream = streamSaver.createWriteStream(`${title.value.length == 0 ? 'spellbook' : title.value}.html`);
             const writer = fileStream.getWriter();
 
             // 写入HTML头部
-            await writer.write(encodeText(generateHTMLHeader(rowHeight.value)));
+            await writer.write(encodeText(generateHTMLHeader(title.value, rowHeight.value)));
             await writer.write(encodeText(generateTOC(chapters.value)));
 
             const totalFiles = chapters.value.reduce((acc, chapter) => acc + chapter.fileList.length, 0);
@@ -227,7 +233,14 @@ export default {
 
 
         return {
+            title,
             chapters,
+            compressQuality,
+            rowHeight,
+            itemsPerRow,
+            progress,
+            isLoading,
+
             addChapter,
             triggerFileInput,
             handleFiles,
@@ -235,11 +248,8 @@ export default {
             removeChapter,
             exportSheet,
             compressImage,
-            compressQuality,
-            rowHeight,
-            itemsPerRow,
-            progress,
-            isLoading, Plus, Delete, Close, Download, DocumentAdd
+
+            Plus, Delete, Close, Download, DocumentAdd
         };
     },
 };
@@ -249,23 +259,13 @@ function encodeText(text) {
     return encoder.encode(text);
 }
 
-async function createWritableBlobStream(filename) {
-    const { writable, readable } = new TransformStream();
-    const writer = writable.getWriter();
-    const blobStream = new Response(readable).blob();
-
-    saveAs(blobStream, filename);
-
-    return writer;
-}
-
-function generateHTMLHeader(rowHeight) {
+function generateHTMLHeader(title = '', rowHeight = 0) {
     return `
                 <!DOCTYPE html>
                 <html>
                 <head>
                     <meta charset="utf-8">
-                    <title>Spellbook</title>
+                    <title>${title.length == 0 ? "HTML Spellbook" : title}</title>
                     <style>
                         table {
                             border-collapse: collapse;
@@ -286,7 +286,7 @@ function generateHTMLHeader(rowHeight) {
                     </style>
                 </head>
                 <body>
-                    <h1>HTML 法典</h1>
+                    <h1>${title.length == 0 ? "HTML 法典" : title}</h1>
                     <button type="button" class="fixed-button" onclick="saveStaticHTML()">另存一份</button>
                     <button type="button" class="fixed-button" style="top: 70px;" onclick="backToTOC()">回到目录</button>
                     <p>可以点击表格内容，对表格中的文本进行修改。<font color="red">如有修改，请注意及时保存（可以点击右上角按钮，另存一份修改后的 HTML 文件）。</font></p>
