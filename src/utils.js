@@ -1,7 +1,7 @@
 import pako from 'pako';
 import extractChunks from "png-chunks-extract";
 import text from "png-chunk-text";
-import optimizeImage from 'wasm-image-optimization/esm';
+import { optimizeImage } from 'wasm-image-optimization/esm';
 
 class DataReader {
     constructor(data) {
@@ -147,31 +147,17 @@ export async function getImageData(bytes) {
     }
 }
 
-export function compress(imageBase64, scaleFactor, quality) {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-            // 创建canvas元素
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-
-            // 设置canvas大小为缩放后的大小
-            canvas.width = img.width * scaleFactor;
-            canvas.height = img.height * scaleFactor;
-
-            // 将图片绘制到canvas上
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-            // 将canvas内容转换为压缩格式的Base64字符串
-            const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
-
-            resolve(compressedBase64);
-        };
-        img.onerror = (err) => {
-            reject(err);
-        };
-
-        // 设置图片的源为传入的Base64编码
-        img.src = imageBase64;
-    });
+export async function compress(imageArrayBuffer, quality) {
+    const compressionOptions = {
+        image: imageArrayBuffer,
+        quality: quality,
+        format: "webp"  // 指定输出格式为 webp
+    };
+    try {
+        const compressedArrayBuffer = await optimizeImage(compressionOptions);
+        return compressedArrayBuffer;
+    } catch (error) {
+        console.error('Error compressing image:', error);
+        return null;  // 在压缩失败时返回 null
+    }
 }

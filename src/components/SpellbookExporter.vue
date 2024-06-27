@@ -36,9 +36,9 @@
 
             <div v-if="compressImage" class="form-item">
                 <span>压缩品质：</span>
-                <el-slider v-model="compressRatio" :min="0.5" :max="1" :step="0.05" :show-tooltip="false" />
-                <span>{{ Math.round(compressRatio * 100) }}%</span>
-                <span v-if="compressRatio == 1">&nbsp;← 将保留水印信息</span>
+                <el-slider v-model="compressQuality" :min="50" :max="100" :step="5" :show-tooltip="false" />
+                <span>{{ compressQuality }}%</span>
+                <span v-if="compressQuality == 100">&nbsp;← 将保留水印信息</span>
             </div>
         </div>
 
@@ -64,8 +64,7 @@ export default {
 
         const itemsPerRow = ref(3);
         const compressImage = ref(false);
-        const compressSizeRatio = ref(1);
-        const compressQuality = ref(1);
+        const compressQuality = ref(100);
         const rowHeight = ref(512);
         const progress = ref(0);
         const isLoading = ref(false);
@@ -166,9 +165,9 @@ export default {
 
                 for (let j = 0; j < Math.min(itemsPerRow.value, chapter.fileList.length); j++) {
                     await writer.write(encodeText(`
-                <th width="150px">Description</th>
-                <th width="128px">Image</th>
-            `));
+                        <th width="150px">Description</th>
+                        <th width="128px">Image</th>
+                    `));
                 }
 
                 await writer.write(encodeText(`</tr></thead><tbody>`));
@@ -183,16 +182,17 @@ export default {
                     const filePromise = new Promise((resolve) => {
                         reader.onload = async (e) => {
                             try {
-                                let imageBase64 = e.target.result;
+                                let imageBytes = e.target.result;
                                 if (compressImage.value) {
-                                    imageBase64 = await compress(imageBase64, compressSizeRatio.value, compressQuality.value);
+                                    const compressedBytes = await compress(imageBytes, compressQuality.value);
+                                    if (compressedBytes != null) imageBytes = compressedBytes;
                                 }
                                 if (rowIndex % itemsPerRow.value === 0) {
                                     await writer.write(encodeText('<tr>'));
                                 }
                                 await writer.write(encodeText(`
                                     <td contenteditable="true" style="text-align: left; vertical-align: top; font-size: 10px">${description.replace(/,([^ ])/g, ', $1')}</td>
-                                    <td><img data-src="${imageBase64}" alt="Image" height=${rowHeight.value} class="lazy"></td>
+                                    <td><img data-src="${imageBytes}" alt="Image" height=${rowHeight.value} class="lazy"></td>
                                 `));
                                 if (rowIndex % itemsPerRow.value === itemsPerRow.value - 1) {
                                     await writer.write(encodeText('</tr>'));
@@ -235,7 +235,7 @@ export default {
             removeChapter,
             exportSheet,
             compressImage,
-            compressRatio: compressSizeRatio,
+            compressQuality,
             rowHeight,
             itemsPerRow,
             progress,
