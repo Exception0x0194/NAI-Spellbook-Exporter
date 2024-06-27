@@ -7,7 +7,7 @@
 
         <div>
             <el-button @click="addChapter" :icon="DocumentAdd">添加章节</el-button>
-            <el-button @click="addFolder" :icon="FolderAdd">添加文件夹</el-button>
+            <el-button @click="addFolder" :icon="FolderAdd">由二级目录批量生成章节</el-button>
             <el-button @click="exportSheet" :icon="Download">导出到 HTML 表格</el-button>
             <input type="file" id="add-chapter-input" multiple webkitdirectory style="display: none;"
                 @change="handleFolders" />
@@ -53,19 +53,21 @@
         </div>
 
 
-        <div v-if="isLoading">
-            <p><progress max="100" :value="progress">{{ progress }}%</progress></p>
+        <div v-if="loadInfo.isLoading">
+            <progress max="100" :value="computeProgress">{{ computeProgress }}%</progress>
         </div>
+
     </div>
 </template>
 
 
 <script>
-import { ref, getCurrentInstance } from 'vue';
+import { ref, getCurrentInstance, computed } from 'vue';
 import { getImageData, compress } from '../utils.js';
 import { ElMessage } from 'element-plus';
 import { Plus, Delete, Close, Download, DocumentAdd, FolderAdd } from '@element-plus/icons-vue';
 import streamSaver from 'streamsaver';
+import { preProcessFile } from 'typescript';
 
 export default {
     setup() {
@@ -80,6 +82,8 @@ export default {
         const rowHeight = ref(512);
         const progress = ref(0);
         const isLoading = ref(false);
+
+        const loadInfo = ref({ isLoading: false, current: 0, max: 0 });
 
         const addFolder = () => {
             const input = document.createElement('input');
@@ -115,45 +119,26 @@ export default {
         const handleFiles = (event, index) => {
             const input = event.target;
             if (input.files) {
-                isLoading.value = true;
-                progress.value = 0;
+                loadInfo.value.isLoading = true;
+                loadInfo.value.current = 0;
 
                 let completed = 0;
                 const totalFiles = input.files.length;
+                loadInfo.value.max = totalFiles;
 
                 const filePromises = [];
                 for (let i = 0; i < totalFiles; i++) {
                     const file = input.files[i];
                     const reader = new FileReader();
 
-                    const filePromise = new Promise((resolve) => {
-                        reader.onload = async (e) => {
-                            try {
-                                const arrayBuffer = e.target.result;
-                                const metadata = await getImageData(arrayBuffer);
-                                if (metadata) {
-                                    chapters.value[index].fileList.push(file);
-                                    chapters.value[index].metadataList.push(metadata);
-                                } else {
-                                    console.error('Could not find watermark in image.');
-                                }
-                            } catch (error) {
-                                console.error('Error reading file:', error);
-                            } finally {
-                                completed++;
-                                progress.value = Math.round(100 * completed / totalFiles);
-                                resolve();
-                            }
-                        };
-                        reader.readAsArrayBuffer(file);
-                    });
+                    const filePromise = processFile(file, chapters.value[index]);
 
                     filePromises.push(filePromise);
                 }
 
                 Promise.all(filePromises).then(() => {
-                    isLoading.value = false;
-                    progress.value = 0;
+                    loadInfo.value.isLoading = false;
+                    ElMessage({ message: `处理了 ${totalFiles} 份文件`, type: 'success' });
                 });
             }
 
@@ -164,58 +149,96 @@ export default {
             const totalFiles = fileMap['length'];
             if (totalFiles === 0) return;
 
-            const newChapter = { name: "", comment: "", fileList: [], metadataList: [] };
-            newChapter.name = fileMap[0].webkitRelativePath.split('/')[0];
+            loadInfo.value.isLoading = true;
+            loadInfo.value.max = totalFiles;
 
-            isLoading.value = true;
-            progress.value = 0;
-            let completed = 0;
+            const folderStructure = {};
+            const rootFiles = [];
 
-            const filePromises = [];
+            // 组织文件和文件夹
             for (let idx = 0; idx < totalFiles; idx++) {
                 const file = fileMap[idx];
-                const reader = new FileReader();
-
-                const filePromise = new Promise((resolve) => {
-                    reader.onload = async (e) => {
-                        try {
-                            const arrayBuffer = e.target.result;
-                            const metadata = await getImageData(arrayBuffer);
-                            if (metadata) {
-                                newChapter.fileList.push(file);
-                                newChapter.metadataList.push(metadata);
-                            } else {
-                                console.error('Could not find watermark in image.');
-                            }
-                        } catch (error) {
-                            console.error('Error reading file:', error);
-                        } finally {
-                            completed++;
-                            progress.value = Math.round(100 * completed / totalFiles);
-                            resolve();
-                        }
-                    };
-                    reader.readAsArrayBuffer(file);
-                });
-
-                filePromises.push(filePromise);
+                const pathParts = file.webkitRelativePath.split('/');
+                if (pathParts.length === 2) {  // 直接位于一级目录下的文件
+                    rootFiles.push(file);
+                } else if (pathParts.length > 2) {
+                    const chapterName = pathParts[1];
+                    if (!folderStructure[chapterName]) {
+                        folderStructure[chapterName] = [];
+                    }
+                    folderStructure[chapterName].push(file);
+                }
             }
 
-            Promise.all(filePromises).then(() => {
-                isLoading.value = false;
-                progress.value = 0;
+            // 设置标题
+            title.value = fileMap[0].webkitRelativePath.split('/')[0];
+
+            const filePromises = [];
+
+            // 处理章节文件夹
+            for (const chapterName in folderStructure) {
+                const newChapter = { name: chapterName, comment: "", fileList: [], metadataList: [] };
+                folderStructure[chapterName].forEach(file => {
+                    const filePromise = processFile(file, newChapter);
+                    filePromises.push(filePromise);
+                });
                 chapters.value.push(newChapter);
-                ElMessage({ message: `添加了 ${totalFiles} 份文件`, type: 'success' });
-                addFolder();
+            }
+
+            // 处理根目录文件
+            const rootChapter = { name: "其他文件", comment: "", fileList: [], metadataList: [] };
+            rootFiles.forEach(file => {
+                const filePromise = processFile(file, rootChapter);
+                filePromises.push(filePromise);
+            });
+            if (rootFiles.length > 0) {
+                chapters.value.push(rootChapter);
+            }
+
+            // 等待所有文件处理完成
+            await Promise.all(filePromises);
+            loadInfo.value.isLoading = false;
+            ElMessage({ message: `处理了 ${totalFiles} 份文件`, type: 'success' });
+        };
+
+        const processFile = (file, chapter) => {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const arrayBuffer = e.target.result;
+                        const metadata = await getImageData(arrayBuffer);
+                        if (metadata) {
+                            chapter.fileList.push(file);
+                            chapter.metadataList.push(metadata);
+                        } else {
+                            ElMessage({ message: `未找到生成信息：${file.name}`, type: 'error' });
+                        }
+                    } catch (error) {
+                        ElMessage({ message: `读取信息时出错：${file.name}，错误信息：${error}`, type: 'error' });
+                    } finally {
+                        loadInfo.value.current++;
+                        resolve();
+                    }
+                };
+                reader.readAsArrayBuffer(file);
             });
         };
+
+        const computeProgress = computed(() => {
+            if (loadInfo.value.max > 0) {
+                const percentage = Math.round((loadInfo.value.current / loadInfo.value.max) * 100);
+                return percentage;
+            }
+            return 0;
+        });
 
         async function exportSheet() {
             if (chapters.value.length === 0) {
                 return;
             }
-            isLoading.value = true;
-            progress.value = 0;
+            loadInfo.value.isLoading = true;
+            loadInfo.value.current = 0;
 
             const fileStream = streamSaver.createWriteStream(`${title.value.length == 0 ? 'spellbook' : title.value}.html`);
             const writer = fileStream.getWriter();
@@ -225,7 +248,6 @@ export default {
             await writer.write(encodeText(generateTOC(chapters.value)));
 
             const totalFiles = chapters.value.reduce((acc, chapter) => acc + chapter.fileList.length, 0);
-            let processedFiles = 0;
 
             for (let i = 0; i < chapters.value.length; i++) {
                 const chapter = chapters.value[i];
@@ -271,8 +293,7 @@ export default {
                                     await writer.write(encodeText('</tr>'));
                                 }
                                 rowIndex++;
-                                processedFiles++;
-                                progress.value = Math.round((processedFiles / totalFiles) * 100);
+                                loadInfo.value.current++;
                                 resolve();
                             } catch (error) {
                                 console.error('Error processing image:', error);
@@ -281,7 +302,6 @@ export default {
                         };
                         reader.readAsDataURL(file);
                     });
-
                     await filePromise;
                 }
 
@@ -295,7 +315,7 @@ export default {
             await writer.write(encodeText(generateHTMLFooterWithLazyLoading()));
             await writer.close();
 
-            isLoading.value = false;
+            loadInfo.value.isLoading = false;
         };
 
 
@@ -307,6 +327,7 @@ export default {
             itemsPerRow,
             progress,
             isLoading,
+            loadInfo,
 
             addChapter,
             triggerFileInput,
@@ -317,6 +338,7 @@ export default {
             compressImage,
             addFolder,
             handleFolders,
+            computeProgress,
 
             Plus, Delete, Close, Download, DocumentAdd, FolderAdd
         };
