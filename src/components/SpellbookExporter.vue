@@ -5,8 +5,13 @@
             <el-input v-model="title" style="width: 200px; margin-bottom: 5px" placeholder="输入法典标题" />
         </div>
 
-        <el-button @click="addChapter" :icon="DocumentAdd">添加章节</el-button>
-        <el-button @click="exportSheet" :icon="Download">导出到 HTML 表格</el-button>
+        <div>
+            <el-button @click="addChapter" :icon="DocumentAdd">添加章节</el-button>
+            <el-button @click="addFolder" :icon="FolderAdd">添加文件夹</el-button>
+            <el-button @click="exportSheet" :icon="Download">导出到 HTML 表格</el-button>
+            <input type="file" id="add-chapter-input" multiple webkitdirectory style="display: none;"
+                @change="handleFolders" />
+        </div>
 
         <div v-for="(chapter, index) in chapters" :key="index" class="chapter-box">
             <div class="chapter-box-item">
@@ -58,7 +63,8 @@
 <script>
 import { ref, getCurrentInstance } from 'vue';
 import { getImageData, compress } from '../utils.js';
-import { Plus, Delete, Close, Download, DocumentAdd } from '@element-plus/icons-vue';
+import { ElMessage } from 'element-plus';
+import { Plus, Delete, Close, Download, DocumentAdd, FolderAdd } from '@element-plus/icons-vue';
 import streamSaver from 'streamsaver';
 
 export default {
@@ -75,8 +81,17 @@ export default {
         const progress = ref(0);
         const isLoading = ref(false);
 
+        const addFolder = () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.webkitdirectory = true;
+            input.multiple = true;
+            input.onchange = handleFolders;
+            input.click();
+        };
+
         const addChapter = () => {
-            chapters.value.push({ title: "", comment: "", fileList: [], metadataList: [] });
+            chapters.value.push({ name: "", comment: "", fileList: [], metadataList: [] });
         };
 
         const clearChapter = (index) => {
@@ -141,6 +156,58 @@ export default {
                     progress.value = 0;
                 });
             }
+
+        };
+
+        const handleFolders = async (event) => {
+            const fileMap = event.target.files;
+            const totalFiles = fileMap['length'];
+            if (totalFiles === 0) return;
+
+            const newChapter = { name: "", comment: "", fileList: [], metadataList: [] };
+            newChapter.name = fileMap[0].webkitRelativePath.split('/')[0];
+
+            isLoading.value = true;
+            progress.value = 0;
+            let completed = 0;
+
+            const filePromises = [];
+            for (let idx = 0; idx < totalFiles; idx++) {
+                const file = fileMap[idx];
+                const reader = new FileReader();
+
+                const filePromise = new Promise((resolve) => {
+                    reader.onload = async (e) => {
+                        try {
+                            const arrayBuffer = e.target.result;
+                            const metadata = await getImageData(arrayBuffer);
+                            if (metadata) {
+                                newChapter.fileList.push(file);
+                                newChapter.metadataList.push(metadata);
+                            } else {
+                                console.error('Could not find watermark in image.');
+                            }
+                        } catch (error) {
+                            console.error('Error reading file:', error);
+                        } finally {
+                            completed++;
+                            progress.value = Math.round(100 * completed / totalFiles);
+                            resolve();
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                });
+
+                filePromises.push(filePromise);
+            }
+
+            Promise.all(filePromises).then(() => {
+                isLoading.value = false;
+                progress.value = 0;
+                chapters.value.push(newChapter);
+                ElMessage({ message: `添加了 ${totalFiles} 份文件`, type: 'success' });
+                addFolder();
+            });
         };
 
         async function exportSheet() {
@@ -248,8 +315,10 @@ export default {
             removeChapter,
             exportSheet,
             compressImage,
+            addFolder,
+            handleFolders,
 
-            Plus, Delete, Close, Download, DocumentAdd
+            Plus, Delete, Close, Download, DocumentAdd, FolderAdd
         };
     },
 };
