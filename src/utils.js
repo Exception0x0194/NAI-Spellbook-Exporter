@@ -1,6 +1,7 @@
 import pako from 'pako';
 import extractChunks from "png-chunks-extract";
 import text from "png-chunk-text";
+import imageCompression from 'browser-image-compression';
 
 class DataReader {
     constructor(data) {
@@ -146,21 +147,22 @@ export async function getImageData(bytes) {
     }
 }
 
-export function compress(imageBase64, scaleFactor, quality) {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => {
-            // 创建canvas元素
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
+// export function compress(imageBase64, scaleFactor, quality) {
+//     return new Promise((resolve, reject) => {
+//         const img = new Image();
+//         img.onload = () => {
+//             // 创建canvas元素
+//             const canvas = document.createElement('canvas');
+//             const ctx = canvas.getContext('2d');
 
-            // 设置canvas大小为缩放后的大小
-            canvas.width = img.width * scaleFactor;
-            canvas.height = img.height * scaleFactor;
+//             // 设置canvas大小为缩放后的大小
+//             canvas.width = img.width * scaleFactor;
+//             canvas.height = img.height * scaleFactor;
 
-            // 将图片绘制到canvas上
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+//             // 将图片绘制到canvas上
+//             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
+<<<<<<< Updated upstream
             // 将canvas内容转换为JPEG格式的Base64字符串
             const jpegBase64 = canvas.toDataURL('image/jpeg', quality);
 
@@ -169,8 +171,82 @@ export function compress(imageBase64, scaleFactor, quality) {
         img.onerror = (err) => {
             reject(err);
         };
+=======
+//             // 将canvas内容转换为压缩格式的Base64字符串
+//             const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
 
-        // 设置图片的源为传入的Base64编码
-        img.src = imageBase64;
-    });
+//             resolve(compressedBase64);
+//         };
+//         img.onerror = (err) => {
+//             reject(err);
+//         };
+>>>>>>> Stashed changes
+
+//         // 设置图片的源为传入的Base64编码
+//         img.src = imageBase64;
+//     });
+// }
+
+export async function compressWithBIC(imageBase64, quality) {
+    const imageFile = await fetch(imageBase64)
+        .then(res => res.blob())
+        .then(blob => new File([blob], 'image.png', { type: blob.type }));
+
+    const options = {
+        maxSizeMB: 10,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+        quality: quality
+    };
+    try {
+        const compressedFile = await imageCompression(imageFile, options);
+        const compressedBase64 = await imageCompression.getDataUrlFromFile(compressedFile);
+        return compressedBase64;
+    } catch (error) {
+        console.error('Error during image compression:', error);
+    }
+}
+
+import { optimizeImage } from 'wasm-image-optimization/esm';
+
+// async function loadWasm() {
+//     const response = await fetch('/libImage.wasm');
+//     const wasmArrayBuffer = await response.arrayBuffer();
+//     await init(wasmArrayBuffer);
+// }
+
+// await loadWasm();
+
+// 将图像转换为 ArrayBuffer
+async function base64ToArrayBuffer(base64) {
+    const response = await fetch(base64);
+    return await response.arrayBuffer();
+}
+
+// 将 ArrayBuffer 转换为 Base64
+function arrayBufferToBase64(buffer, mimeType) {
+    let binary = '';
+    const bytes = new Uint8Array(buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    return `data:${mimeType};base64,` + btoa(binary);
+}
+
+// 图像压缩函数
+export async function compress(imageBase64, quality) {
+    try {
+        const arrayBuffer = await base64ToArrayBuffer(imageBase64);
+        const optimizedImageBuffer = await optimizeImage({
+            image: arrayBuffer,
+            quality: Math.round(quality * 100),
+            format: 'webp',
+        });
+        const mimeType = 'image/webp';
+        return arrayBufferToBase64(optimizedImageBuffer, mimeType);
+    } catch (error) {
+        console.error('Error during image compression:', error);
+        throw error;
+    }
 }

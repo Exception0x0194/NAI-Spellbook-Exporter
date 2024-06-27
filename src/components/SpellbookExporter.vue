@@ -47,7 +47,12 @@
 
 <script>
 import { ref, getCurrentInstance } from 'vue';
+<<<<<<< Updated upstream
 import { getImageData, compress } from '../utils.js';
+=======
+import { getImageData, compress, compressWithBIC } from '../utils.js';
+import { Plus, Delete, Close, Download, DocumentAdd } from '@element-plus/icons-vue';
+>>>>>>> Stashed changes
 import streamSaver from 'streamsaver';
 
 export default {
@@ -179,15 +184,15 @@ export default {
                             try {
                                 let imageBase64 = e.target.result;
                                 if (compressImage.value) {
-                                    imageBase64 = await compress(imageBase64, compressSizeRatio.value, compressQuality.value);
+                                    imageBase64 = await compress(imageBase64, compressQuality.value);
                                 }
                                 if (rowIndex % itemsPerRow.value === 0) {
                                     await writer.write(encodeText('<tr>'));
                                 }
                                 await writer.write(encodeText(`
-                            <td contenteditable="true" style="text-align: left; vertical-align: top; font-size: 10px">${description.replace(/,([^ ])/g, ', $1')}</td>
-                            <td><img data-src="${imageBase64}" alt="Image" height=${rowHeight.value} class="lazy"></td>
-                        `));
+                                    <td contenteditable="true" style="text-align: left; vertical-align: top; font-size: 10px">${description.replace(/,([^ ])/g, ', $1')}</td>
+                                    <td><img data-src="${imageBase64}" alt="Image" height=${rowHeight.value} class="lazy"></td>
+                                `));
                                 if (rowIndex % itemsPerRow.value === itemsPerRow.value - 1) {
                                     await writer.write(encodeText('</tr>'));
                                 }
