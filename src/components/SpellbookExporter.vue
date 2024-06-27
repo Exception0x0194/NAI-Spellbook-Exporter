@@ -23,8 +23,8 @@
             <div class="form-item">
                 <p>
                     <el-checkbox-button v-model="compressImage" label="压缩图片" style="margin-right: 10px" />
-                    <span v-if="compressImage">将使用 JPG 压缩图片，丢失水印信息</span>
-                    <span v-else>将使用原本的 PNG 图片，保留水印信息</span>
+                    <span v-if="compressImage">将使用 WEBP 压缩图片</span>
+                    <span v-else>将使用原本的 PNG 图片</span>
                 </p>
             </div>
 
@@ -38,7 +38,7 @@
                 <span>压缩品质：</span>
                 <el-slider v-model="compressRatio" :min="0.5" :max="1" :step="0.05" :show-tooltip="false" />
                 <span>{{ Math.round(compressRatio * 100) }}%</span>
-                <!-- <span v-if="compressRatio == 1">&nbsp;← 将保留水印信息</span> -->
+                <span v-if="compressRatio == 1">&nbsp;← 将保留水印信息</span>
             </div>
         </div>
 
@@ -191,9 +191,9 @@ export default {
                                     await writer.write(encodeText('<tr>'));
                                 }
                                 await writer.write(encodeText(`
-                            <td contenteditable="true" style="text-align: left; vertical-align: top; font-size: 10px">${description.replace(/,([^ ])/g, ', $1')}</td>
-                            <td><img data-src="${imageBase64}" alt="Image" height=${rowHeight.value} class="lazy"></td>
-                        `));
+                                    <td contenteditable="true" style="text-align: left; vertical-align: top; font-size: 10px">${description.replace(/,([^ ])/g, ', $1')}</td>
+                                    <td><img data-src="${imageBase64}" alt="Image" height=${rowHeight.value} class="lazy"></td>
+                                `));
                                 if (rowIndex % itemsPerRow.value === itemsPerRow.value - 1) {
                                     await writer.write(encodeText('</tr>'));
                                 }

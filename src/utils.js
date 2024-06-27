@@ -1,6 +1,7 @@
 import pako from 'pako';
 import extractChunks from "png-chunks-extract";
 import text from "png-chunk-text";
+import optimizeImage from 'wasm-image-optimization/esm';
 
 class DataReader {
     constructor(data) {

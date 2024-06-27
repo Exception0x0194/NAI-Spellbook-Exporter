@@ -15,7 +15,8 @@
     "png-chunk-text": "^1.0.0",
     "png-chunks-extract": "^1.0.0",
     "streamsaver": "^2.0.6",
-    "vue": "^3.4.21"
+    "vue": "^3.4.21",
+    "wasm-image-optimization": "^1.0.1"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.4",
