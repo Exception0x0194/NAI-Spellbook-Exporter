@@ -8,7 +8,6 @@
         <div>
             <el-button @click="addChapter" :icon="DocumentAdd">添加章节</el-button>
             <el-button @click="addFolder" :icon="FolderAdd">由二级目录批量生成章节</el-button>
-            <el-button @click="exportSheet" :icon="Download">导出到 HTML 表格</el-button>
             <input type="file" id="add-chapter-input" multiple webkitdirectory style="display: none;"
                 @change="handleFolders" />
         </div>
@@ -27,6 +26,11 @@
 
             <input type="file" :ref="'fileInput' + index" @change="handleFiles($event, index)" multiple
                 accept="image/png, image/gif, image/webp" style="display: none;" />
+        </div>
+
+        <div>
+            <el-button @click="exportText" :icon="Document">导出 Prompt 纯文本</el-button>
+            <el-button @click="exportSheet" :icon="Download">导出到 HTML 表格</el-button>
         </div>
 
         <div class="form-container">
@@ -65,7 +69,7 @@
 import { ref, getCurrentInstance, computed } from 'vue';
 import { getImageData, compress } from '../utils.js';
 import { ElMessage } from 'element-plus';
-import { Plus, Delete, Close, Download, DocumentAdd, FolderAdd } from '@element-plus/icons-vue';
+import { Plus, Delete, Close, Download, DocumentAdd, FolderAdd, Document } from '@element-plus/icons-vue';
 import streamSaver from 'streamsaver';
 import { preProcessFile } from 'typescript';
 
@@ -231,6 +235,30 @@ export default {
             return 0;
         });
 
+        const exportText = () => {
+            let content = '';
+            chapters.value.forEach(chapter => {
+                if (chapter.metadataList.length > 0) {
+                    chapter.metadataList.forEach(metadata => {
+                        content += metadata.Description + '\n';
+                    })
+                }
+            });
+            content = content.trim();
+
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'prompts.txt';
+            document.body.appendChild(link);
+            link.click();
+
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        };
+
         async function exportSheet() {
             if (chapters.value.length === 0) {
                 return;
@@ -331,12 +359,13 @@ export default {
             clearChapter,
             removeChapter,
             exportSheet,
+            exportText,
             compressImage,
             addFolder,
             handleFolders,
             computeProgress,
 
-            Plus, Delete, Close, Download, DocumentAdd, FolderAdd
+            Plus, Delete, Close, Download, DocumentAdd, FolderAdd, Document
         };
     },
 };
