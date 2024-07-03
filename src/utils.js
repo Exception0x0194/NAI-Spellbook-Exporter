@@ -1,4 +1,3 @@
-import pako from 'pako';
 import extractChunks from "png-chunks-extract";
 import text from "png-chunk-text";
 import { optimizeImage } from 'wasm-image-optimization/esm';
@@ -6,50 +5,10 @@ import init, { decode_image_data } from 'stealth-watermark-reader';
 
 let init_wasm_image_reader = false;
 
-class DataReader {
-    constructor(data) {
-        this.data = data;
-        this.index = 0;
-    }
-
-    readBit() {
-        return this.data[this.index++];
-    }
-
-    readNBits(n) {
-        let bits = [];
-        for (let i = 0; i < n; i++) {
-            bits.push(this.readBit());
-        }
-        return bits;
-    }
-
-    readByte() {
-        let byte = 0;
-        for (let i = 0; i < 8; i++) {
-            byte |= this.readBit() << (7 - i);
-        }
-        return byte;
-    }
-
-    readNBytes(n) {
-        let bytes = [];
-        for (let i = 0; i < n; i++) {
-            bytes.push(this.readByte());
-        }
-        return bytes;
-    }
-
-    readInt32() {
-        let bytes = this.readNBytes(4);
-        return new DataView(new Uint8Array(bytes).buffer).getInt32(0, false);
-    }
-}
-
 async function getChunks(bytes) {
     let chunks = [];
     try {
-        chunks = extractChunks(new Uint8Array(bytes));
+        chunks = extractChunks(bytes);
     } catch (err) {
         return chunks;
     }
@@ -92,7 +51,7 @@ async function getPngMetadata(bytes) {
 }
 
 
-async function getStealthExif(bytes, type = 'image/png') {
+async function getStealthExif(bytes) {
     if (!init_wasm_image_reader) {
         await init();
         init_wasm_image_reader = true;
@@ -101,7 +60,7 @@ async function getStealthExif(bytes, type = 'image/png') {
 
     try {
         // decode_image_data 函数调用，正确处理异步和错误
-        const jsonString = decode_image_data(new Uint8Array(bytes));
+        const jsonString = decode_image_data(bytes);
         const json = JSON.parse(jsonString);  // 尝试解析 JSON
         return json;
     } catch (error) {
@@ -109,58 +68,13 @@ async function getStealthExif(bytes, type = 'image/png') {
         console.log("Error parsing image data: " + error);
         return null;
     }
-
-
-    let canvas = document.createElement('canvas');
-    let ctx = canvas.getContext('2d', { willReadFrequently: true, alpha: true });
-
-    let blob = new Blob([bytes], { type: type });
-    let url = URL.createObjectURL(blob);
-    let img = new Image();
-    img.src = url;
-
-    await img.decode();
-
-    canvas.width = img.width;
-    canvas.height = img.height;
-    ctx.drawImage(img, 0, 0);
-
-    let imageData = ctx.getImageData(0, 0, img.width, img.height);
-    let lowestData = [];
-
-    for (let x = 0; x < img.width; x++) {
-        for (let y = 0; y < img.height; y++) {
-            let index = (y * img.width + x) * 4;
-            let a = imageData.data[index + 3];
-            lowestData.push(a & 1);
-        }
-    }
-    URL.revokeObjectURL(url);
-
-    const magic = "stealth_pngcomp";
-    const reader = new DataReader(lowestData);
-    const readMagic = reader.readNBytes(magic.length);
-    const magicString = String.fromCharCode.apply(null, readMagic);
-
-    if (magic === magicString) {
-        const dataLength = reader.readInt32();
-        const gzipData = reader.readNBytes(dataLength / 8);
-        const data = pako.ungzip(new Uint8Array(gzipData));
-        const jsonString = new TextDecoder().decode(new Uint8Array(data));
-        const json = JSON.parse(jsonString);
-        return json;
-    } else {
-        console.log("Magic number not found.");
-    }
-
-    return null;
 }
 
-export async function getImageData(bytes, type = 'image/png') {
+export async function getImageData(bytes) {
     try {
         let json = await getPngMetadata(bytes);
         if (Object.keys(json).length === 0) {
-            json = await getStealthExif(bytes, type);
+            json = await getStealthExif(bytes);
         }
         return json;
     } catch (err) {

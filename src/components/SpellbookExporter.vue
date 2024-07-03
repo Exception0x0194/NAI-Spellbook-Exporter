@@ -37,7 +37,8 @@
             <div class="form-item">
                 <p>
                     <el-checkbox-button v-model="compressImage" label="压缩图片" style="margin-right: 10px" />
-                    <span v-if="compressImage">将使用 WEBP 压缩图片（保留水印信息）</span>
+                    <span v-if="compressImage">将压缩图片（较慢，建议使用<a
+                            href="https://github.com/Exception0x0194/webp-compressor">本地压图软件</a>后再导入）</span>
                     <span v-else>将使用导入的图片</span>
                 </p>
             </div>
@@ -52,7 +53,6 @@
                 <span>压缩品质：</span>
                 <el-slider v-model="compressQuality" :min="0" :max="100" :step="5" :show-tooltip="false" />
                 <span>{{ compressQuality }}%</span>
-                <!-- <span v-if="compressQuality == 100">&nbsp;← 将保留水印信息</span> -->
             </div>
         </div>
 
@@ -81,7 +81,7 @@ export default {
         const chapters = ref([{ title: "", comment: "", fileList: [], metadataList: [] }]);
 
         const itemsPerRow = ref(3);
-        const compressImage = ref(true);
+        const compressImage = ref(false);
         const compressQuality = ref(90);
         const rowHeight = ref(512);
 
@@ -208,7 +208,7 @@ export default {
                 const reader = new FileReader();
                 reader.onload = async (e) => {
                     try {
-                        const arrayBuffer = e.target.result;
+                        const arrayBuffer = new Uint8Array(e.target.result);
                         const metadata = await getImageData(arrayBuffer, file.type);
                         if (metadata) {
                             chapter.fileList.push(file);
