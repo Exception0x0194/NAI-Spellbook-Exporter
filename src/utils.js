@@ -4,17 +4,6 @@ import { optimizeImage } from 'wasm-image-optimization/esm';
 import init, { decode_image_data } from 'stealth-watermark-reader';
 
 let initWasmReader = false;
-let initPromise = null;
-
-async function initWasm() {
-    if (!initPromise) { // 如果还没有初始化过，创建一个新的 promise
-        initPromise = init().then(() => {
-            initWasmReader = true;
-            console.log("Wasm pack init");
-        });
-    }
-    return initPromise; // 返回初始化 promise
-}
 
 async function getChunks(bytes) {
     let chunks = [];
@@ -63,7 +52,11 @@ async function getPngMetadata(bytes) {
 
 
 async function getStealthExif(bytes) {
-    await initWasm();
+    if (!initWasmReader) {
+        await init();
+        initWasmReader = true;
+        console.log('WASM Init');
+    }
 
     try {
         // decode_image_data 函数调用，正确处理异步和错误
