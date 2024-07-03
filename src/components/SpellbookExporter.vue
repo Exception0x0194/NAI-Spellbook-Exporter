@@ -130,7 +130,6 @@ export default {
                 for (let i = 0; i < totalFiles; i++) {
                     const file = input.files[i];
                     await processFile(file, chapters.value[index]);
-                    loadInfo.value.current++;
                 }
 
                 loadInfo.value.isLoading = false;
