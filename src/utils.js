@@ -3,7 +3,18 @@ import text from "png-chunk-text";
 import { optimizeImage } from 'wasm-image-optimization/esm';
 import init, { decode_image_data } from 'stealth-watermark-reader';
 
-let init_wasm_image_reader = false;
+let initWasmReader = false;
+let initPromise = null;
+
+async function initWasm() {
+    if (!initPromise) { // 如果还没有初始化过，创建一个新的 promise
+        initPromise = init().then(() => {
+            initWasmReader = true;
+            console.log("Wasm pack init");
+        });
+    }
+    return initPromise; // 返回初始化 promise
+}
 
 async function getChunks(bytes) {
     let chunks = [];
@@ -52,11 +63,7 @@ async function getPngMetadata(bytes) {
 
 
 async function getStealthExif(bytes) {
-    if (!init_wasm_image_reader) {
-        await init();
-        init_wasm_image_reader = true;
-        console.log("Wasm pack init");
-    }
+    await initWasm();
 
     try {
         // decode_image_data 函数调用，正确处理异步和错误
