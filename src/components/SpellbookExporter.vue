@@ -118,32 +118,24 @@ export default {
             }
         };
 
-        const handleFiles = (event, index) => {
+        const handleFiles = async (event, index) => {
             const input = event.target;
             if (input.files) {
                 loadInfo.value.isLoading = true;
                 loadInfo.value.current = 0;
 
-                let completed = 0;
                 const totalFiles = input.files.length;
                 loadInfo.value.max = totalFiles;
 
-                const filePromises = [];
                 for (let i = 0; i < totalFiles; i++) {
                     const file = input.files[i];
-                    const reader = new FileReader();
-
-                    const filePromise = processFile(file, chapters.value[index]);
-
-                    filePromises.push(filePromise);
+                    await processFile(file, chapters.value[index]);
+                    loadInfo.value.current++;
                 }
 
-                Promise.all(filePromises).then(() => {
-                    loadInfo.value.isLoading = false;
-                    ElMessage({ message: `处理了 ${totalFiles} 份文件`, type: 'success' });
-                });
+                loadInfo.value.isLoading = false;
+                ElMessage({ message: `处理了 ${totalFiles} 份文件`, type: 'success' });
             }
-
         };
 
         const handleFolders = async (event) => {
