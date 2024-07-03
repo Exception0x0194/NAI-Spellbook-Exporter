@@ -14,6 +14,7 @@
     "pako": "^2.1.0",
     "png-chunk-text": "^1.0.0",
     "png-chunks-extract": "^1.0.0",
+    "stealth-watermark-reader": "^0.1.2",
     "streamsaver": "^2.0.6",
     "vue": "^3.4.21",
     "wasm-image-optimization": "^1.0.1"

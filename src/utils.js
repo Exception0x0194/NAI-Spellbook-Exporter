@@ -2,6 +2,9 @@ import pako from 'pako';
 import extractChunks from "png-chunks-extract";
 import text from "png-chunk-text";
 import { optimizeImage } from 'wasm-image-optimization/esm';
+import init, { decode_image_data } from 'stealth-watermark-reader';
+
+let init_wasm_image_reader = false;
 
 class DataReader {
     constructor(data) {
@@ -88,7 +91,26 @@ async function getPngMetadata(bytes) {
     return json;
 }
 
+
 async function getStealthExif(bytes, type = 'image/png') {
+    if (!init_wasm_image_reader) {
+        await init();
+        init_wasm_image_reader = true;
+        console.log("Wasm pack init");
+    }
+
+    try {
+        // decode_image_data 函数调用，正确处理异步和错误
+        const jsonString = decode_image_data(new Uint8Array(bytes));
+        const json = JSON.parse(jsonString);  // 尝试解析 JSON
+        return json;
+    } catch (error) {
+        // 错误处理，包括来自 Rust 的错误和 JSON 解析错误
+        console.log("Error parsing image data: " + error);
+        return null;
+    }
+
+
     let canvas = document.createElement('canvas');
     let ctx = canvas.getContext('2d', { willReadFrequently: true, alpha: true });
 

@@ -6,7 +6,8 @@ export default defineConfig({
   plugins: [vue()],
   optimizeDeps: {
     exclude: [
-      "wasm-image-optimization"
+      "wasm-image-optimization",
+      "stealth-watermark-reader"
     ]
   }
 })
