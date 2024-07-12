@@ -313,53 +313,27 @@ export default {
             loadInfo.value.isLoading = false;
         };
 
-
-        return {
-            title,
-            chapters,
-            compressQuality,
-            rowHeight,
-            itemsPerRow,
-            loadInfo,
-
-            addChapter,
-            triggerFileInput,
-            handleFiles,
-            clearChapter,
-            removeChapter,
-            exportSheet,
-            exportText,
-            compressImage,
-            addFolder,
-            handleFolders,
-            computeProgress,
-
-            Plus, Delete, Close, Download, DocumentAdd, FolderAdd, Document
+        function encodeText(text) {
+            const encoder = new TextEncoder();
+            return encoder.encode(text);
         };
-    },
-};
 
-function encodeText(text) {
-    const encoder = new TextEncoder();
-    return encoder.encode(text);
-}
-
-function generateHTMLHeader(title = '', rowHeight = 0, itemsPerRow = 3) {
-    return `
+        function generateHTMLHeader() {
+            return `
             <!DOCTYPE html>
             <html>
             <head>
                 <meta charset="utf-8">
-                <title>${title.length == 0 ? "HTML Spellbook" : title}</title>
+                <title>${title.value.length == 0 ? "HTML Spellbook" : title.value}</title>
                 <style>
                     .grid-images {
                         display: grid;
-                        grid-template-columns: repeat(${itemsPerRow}, 150px auto);
+                        grid-template-columns: repeat(${itemsPerRow.value}, 150px auto);
                     }
                     .grid-images div {
-                        border: solid 0.5px grey;
-                        margin-left: -0.5px;
-                        margin-top: -0.5px;
+                        border: solid 1px grey;
+                        margin-left: -1px;
+                        margin-top: -1px;
                     }
                     .fixed-button {
                         position: fixed;
@@ -431,38 +405,62 @@ function generateHTMLHeader(title = '', rowHeight = 0, itemsPerRow = 3) {
                 });
             <\/script>
             <body>
-                <h1>${title.length == 0 ? "HTML 法典" : title}</h1>
+                <h1>${title.value.length == 0 ? "HTML 法典" : title.value}</h1>
                 <button type="button" class="fixed-button" onclick="saveStaticHTML()">另存一份</button>
                 <button type="button" class="fixed-button" style="top: 70px;" onclick="backToTOC()">回到目录</button>
                 <p>可以点击表格内容，对表格中的文本进行修改。<font color="red">如有修改，请注意及时保存（可以点击右上角按钮，另存一份修改后的 HTML 文件）。</font></p>
                 <p>可以将表格中的图片另存为<font color="red">具有生成信息的</font> PNG/WEBP 图片。</p>
                 <p>
                     <label for="rowHeightRange">调整图片高度：</label>
-                    <input type="range" id="rowHeightRange" min="128" max="1280" step="128" value="${rowHeight}" oninput="adjustRowHeight(this.value)">
-                    <span id="rowHeightValue">&nbsp;${rowHeight}px</span>
+                    <input type="range" id="rowHeightRange" min="128" max="1280" step="128" value="${rowHeight.value}" oninput="adjustRowHeight(this.value)">
+                    <span id="rowHeightValue">&nbsp;${rowHeight.value}px</span>
                 </p>`;
-}
+        };
 
-function generateHTMLFooter() {
-    return `
+        function generateHTMLFooter() {
+            return `
                 <div class="footer">
                     Generated via 
                     <a href="https://github.com/Exception0x0194/NAI-Spellbook-Exporter" target="_blank">NAI-Spellbook-Exporter</a>
                 </div>
             </body>
             </html>`;
-}
+        };
 
-function generateTOC(chapters) {
-    let tocContent = `<div class="toc"> <h2> 目录 </h2> <ul>`;
-    chapters.forEach((chapter, index) => {
-        const chapterTitle = chapter.name ? `#${index + 1}: ${chapter.name}` : `#${index + 1}`;
-        tocContent += `<li><a href="#chapter#${index}">${chapterTitle}</a></li>`;
-    });
-    tocContent += `</ul> </div>`
-    return tocContent;
-}
+        function generateTOC() {
+            let tocContent = `<div class="toc"> <h2> 目录 </h2> <ul>`;
+            chapters.value.forEach((chapter, index) => {
+                const chapterTitle = chapter.name ? `#${index + 1}: ${chapter.name}` : `#${index + 1}`;
+                tocContent += `<li><a href="#chapter#${index}">${chapterTitle}</a></li>`;
+            });
+            tocContent += `</ul> </div>`
+            return tocContent;
+        };
 
+        return {
+            title,
+            chapters,
+            compressImage,
+            compressQuality,
+            rowHeight,
+            itemsPerRow,
+            loadInfo,
+
+            addChapter,
+            triggerFileInput,
+            handleFiles,
+            clearChapter,
+            removeChapter,
+            exportSheet,
+            exportText,
+            addFolder,
+            handleFolders,
+            computeProgress,
+
+            Plus, Delete, Close, Download, DocumentAdd, FolderAdd, Document
+        };
+    },
+};
 </script>
 
 
