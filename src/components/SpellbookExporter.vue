@@ -261,7 +261,7 @@ export default {
             const writer = fileStream.getWriter();
 
             // 写入HTML头部
-            await writer.write(encodeText(generateHTMLHeader(title.value, rowHeight.value)));
+            await writer.write(encodeText(generateHTMLHeader(title.value, rowHeight.value, itemsPerRow.value)));
             await writer.write(encodeText(generateTOC(chapters.value)));
 
             const totalFiles = chapters.value.reduce((acc, chapter) => acc + chapter.fileList.length, 0);
@@ -273,18 +273,7 @@ export default {
                 }
                 const chapterTitle = chapter.name ? `#${i + 1}: ${chapter.name}` : `#${i + 1}`;
                 await writer.write(encodeText(`<h2 id="chapter#${i}">${chapterTitle}</h2>`));
-                await writer.write(encodeText(`<table><thead><tr>`));
-
-                for (let j = 0; j < Math.min(itemsPerRow.value, chapter.fileList.length); j++) {
-                    await writer.write(encodeText(`
-                        <th width="150px">Description</th>
-                        <th width="128px">Image</th>
-                    `));
-                }
-
-                await writer.write(encodeText(`</tr></thead><tbody>`));
-
-                let rowIndex = 0;
+                await writer.write(encodeText(`<div class="grid-images ${i}">`));
 
                 for (let j = 0; j < chapter.fileList.length; j++) {
                     const file = chapter.fileList[j];
@@ -299,17 +288,10 @@ export default {
                                     const compressedBytes = await compress(imageBytes, compressQuality.value);
                                     if (compressedBytes != null) imageBytes = compressedBytes;
                                 }
-                                if (rowIndex % itemsPerRow.value === 0) {
-                                    await writer.write(encodeText('<tr>'));
-                                }
                                 await writer.write(encodeText(`
-                                    <td contenteditable="true" style="text-align: left; vertical-align: top; font-size: 10px">${description.replace(/,([^ ])/g, ', $1')}</td>
-                                    <td><img data-src="${imageBytes}" alt="Image" height=${rowHeight.value} class="lazy"></td>
+                                    <div contenteditable="true" style="text-align: left; vertical-align: top; font-size: 10px">${description.replace(/,([^ ])/g, ', $1')}</div>
+                                    <div><img class="lazy" data-src="${imageBytes}" alt="Image" height=${rowHeight.value}></div>
                                 `));
-                                if (rowIndex % itemsPerRow.value === itemsPerRow.value - 1) {
-                                    await writer.write(encodeText('</tr>'));
-                                }
-                                rowIndex++;
                                 loadInfo.value.current++;
                                 resolve();
                             } catch (error) {
@@ -321,15 +303,11 @@ export default {
                     });
                     await filePromise;
                 }
-
-                if (rowIndex % itemsPerRow.value !== 0) {
-                    await writer.write(encodeText('</tr>'));
-                }
-                await writer.write(encodeText(`</tbody></table>`));
+                await writer.write(encodeText(`</div>`));
             }
 
             // 写入HTML尾部和懒加载脚本
-            await writer.write(encodeText(generateHTMLFooterWithLazyLoading()));
+            await writer.write(encodeText(generateHTMLFooter()));
             await writer.close();
 
             loadInfo.value.isLoading = false;
@@ -366,111 +344,113 @@ function encodeText(text) {
     return encoder.encode(text);
 }
 
-function generateHTMLHeader(title = '', rowHeight = 0) {
+function generateHTMLHeader(title = '', rowHeight = 0, itemsPerRow = 3) {
     return `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <title>${title.length == 0 ? "HTML Spellbook" : title}</title>
-                    <style>
-                        table {
-                            border-collapse: collapse;
-                        }
-                        th, td {
-                            border: 1px solid gray;
-                            padding: 5px;
-                        }
-                        .fixed-button {
-                            position: fixed;
-                            top: 10px;
-                            right: 10px;
-                            z-index: 1000;
-                            width: 100px;
-                            height: 50px; 
-                            font-size: 16px;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <h1>${title.length == 0 ? "HTML 法典" : title}</h1>
-                    <button type="button" class="fixed-button" onclick="saveStaticHTML()">另存一份</button>
-                    <button type="button" class="fixed-button" style="top: 70px;" onclick="backToTOC()">回到目录</button>
-                    <p>可以点击表格内容，对表格中的文本进行修改。<font color="red">如有修改，请注意及时保存（可以点击右上角按钮，另存一份修改后的 HTML 文件）。</font></p>
-                    <p>可以将表格中的图片另存为<font color="red">具有生成信息的</font> PNG/WEBP 图片。</p>
-                    <p>
-                        <label for="rowHeightRange">调整图片高度：</label>
-                        <input type="range" id="rowHeightRange" min="128" max="1280" step="128" value="${rowHeight}" oninput="adjustRowHeight(this.value)">
-                        <span id="rowHeightValue">&nbsp;${rowHeight}px</span>
-                    </p>`;
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <title>${title.length == 0 ? "HTML Spellbook" : title}</title>
+                <style>
+                    .grid-images {
+                        display: grid;
+                        grid-template-columns: repeat(${itemsPerRow}, 150px auto);
+                    }
+                    .grid-images div {
+                        border: solid 0.5px grey;
+                        margin-left: -0.5px;
+                        margin-top: -0.5px;
+                    }
+                    .fixed-button {
+                        position: fixed;
+                        top: 10px;
+                        right: 10px;
+                        z-index: 1000;
+                        width: 100px;
+                        height: 50px; 
+                        font-size: 16px;
+                    }
+                </style>
+            </head>
+            <script>
+                function adjustRowHeight(value) {
+                    document.querySelectorAll('img').forEach(img => {
+                        img.style.height = value + 'px';
+                    });
+                    document.getElementById('rowHeightValue').innerText = value + 'px';
+                }
+                function saveStaticHTML() {
+                    const content = document.documentElement.outerHTML;
+                    const blob = new Blob([content], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'spellbook.html';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }
+                function backToTOC() {
+                    window.scrollTo(0, document.querySelector('.toc').offsetTop);
+                }
+                document.addEventListener('DOMContentLoaded', function() {
+                    let lazyImages = [].slice.call(document.querySelectorAll('img.lazy'));
+
+                    if ('IntersectionObserver' in window) {
+                        let lazyImageObserver = new IntersectionObserver(function(entries, observer) {
+                            entries.forEach(function(entry) {
+                                if (entry.isIntersecting) {
+                                    let lazyImage = entry.target;
+                                    lazyImage.src = lazyImage.dataset.src;
+                                    lazyImage.classList.remove('lazy');
+                                    lazyImage.classList.add('lazy-loaded');
+                                    lazyImageObserver.unobserve(lazyImage);
+                                }
+                            });
+                        });
+
+                        lazyImages.forEach(function(lazyImage) {
+                            lazyImageObserver.observe(lazyImage);
+                        });
+                    } else {
+                        // Fallback for older browsers
+                        let lazyLoad = function() {
+                            lazyImages.forEach(function(lazyImage) {
+                                if (lazyImage.getBoundingClientRect().top < window.innerHeight) {
+                                    lazyImage.src = lazyImage.dataset.src;
+                                    lazyImage.classList.remove('lazy');
+                                    lazyImage.classList.add('lazy-loaded');
+                                }
+                            });
+                        };
+
+                        window.addEventListener('scroll', lazyLoad);
+                        window.addEventListener('resize', lazyLoad);
+                        lazyLoad();
+                    }
+                });
+            <\/script>
+            <body>
+                <h1>${title.length == 0 ? "HTML 法典" : title}</h1>
+                <button type="button" class="fixed-button" onclick="saveStaticHTML()">另存一份</button>
+                <button type="button" class="fixed-button" style="top: 70px;" onclick="backToTOC()">回到目录</button>
+                <p>可以点击表格内容，对表格中的文本进行修改。<font color="red">如有修改，请注意及时保存（可以点击右上角按钮，另存一份修改后的 HTML 文件）。</font></p>
+                <p>可以将表格中的图片另存为<font color="red">具有生成信息的</font> PNG/WEBP 图片。</p>
+                <p>
+                    <label for="rowHeightRange">调整图片高度：</label>
+                    <input type="range" id="rowHeightRange" min="128" max="1280" step="128" value="${rowHeight}" oninput="adjustRowHeight(this.value)">
+                    <span id="rowHeightValue">&nbsp;${rowHeight}px</span>
+                </p>`;
 }
 
-function generateHTMLFooterWithLazyLoading() {
+function generateHTMLFooter() {
     return `
-                    <div class="footer">
-                        Generated via 
-                        <a href="https://github.com/Exception0x0194/NAI-Spellbook-Exporter" target="_blank">NAI-Spellbook-Exporter</a>
-                    </div>
-                    <script>
-                        function adjustRowHeight(value) {
-                            document.querySelectorAll('img').forEach(img => {
-                                img.style.height = value + 'px';
-                            });
-                            document.getElementById('rowHeightValue').innerText = value + 'px';
-                        }
-                        function saveStaticHTML() {
-                            const content = document.documentElement.outerHTML;
-                            const blob = new Blob([content], { type: 'text/html' });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = 'spellbook.html';
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                        }
-                        function backToTOC() {
-                            window.scrollTo(0, document.querySelector('.toc').offsetTop);
-                        }
-                        document.addEventListener('DOMContentLoaded', function() {
-                            let lazyImages = [].slice.call(document.querySelectorAll('img.lazy'));
-
-                            if ('IntersectionObserver' in window) {
-                                let lazyImageObserver = new IntersectionObserver(function(entries, observer) {
-                                    entries.forEach(function(entry) {
-                                        if (entry.isIntersecting) {
-                                            let lazyImage = entry.target;
-                                            lazyImage.src = lazyImage.dataset.src;
-                                            lazyImage.classList.remove('lazy');
-                                            lazyImage.classList.add('lazy-loaded');
-                                            lazyImageObserver.unobserve(lazyImage);
-                                        }
-                                    });
-                                });
-
-                                lazyImages.forEach(function(lazyImage) {
-                                    lazyImageObserver.observe(lazyImage);
-                                });
-                            } else {
-                                // Fallback for older browsers
-                                let lazyLoad = function() {
-                                    lazyImages.forEach(function(lazyImage) {
-                                        if (lazyImage.getBoundingClientRect().top < window.innerHeight) {
-                                            lazyImage.src = lazyImage.dataset.src;
-                                            lazyImage.classList.remove('lazy');
-                                            lazyImage.classList.add('lazy-loaded');
-                                        }
-                                    });
-                                };
-
-                                window.addEventListener('scroll', lazyLoad);
-                                window.addEventListener('resize', lazyLoad);
-                                lazyLoad();
-                            }
-                        });
-                    <\/script>
-                </body>
-                </html>`;
+                <div class="footer">
+                    Generated via 
+                    <a href="https://github.com/Exception0x0194/NAI-Spellbook-Exporter" target="_blank">NAI-Spellbook-Exporter</a>
+                </div>
+            </body>
+            </html>`;
 }
 
 function generateTOC(chapters) {
